@@ -48,6 +48,10 @@ FONCTIONS_DE_BASE = [
      "description": "Je retiens ce qui est utile (vos proches, votre ville, vos habitudes). Tout est visible et "
                     "effaçable dans « Ma mémoire ».",
      "exemples": ["Retiens que ma fille s'appelle Léa", "Oublie ma ville"]},
+    {"id": "ecran", "emoji": "👀", "titre": "Regarder votre écran",
+     "description": "Un message bizarre, un bouton introuvable ? Dites « regarde mon écran » : je le regarde et je "
+                    "vous explique où cliquer. L'image reste sur votre ordinateur et n'est pas gardée.",
+     "exemples": ["Regarde mon écran, qu'est-ce que ce message veut dire ?", "Regarde l'écran : où je clique ?"]},
     {"id": "calculs", "emoji": "🧮", "titre": "Faire des calculs",
      "description": "Pourcentages, remises, partage d'une addition, moyennes : je fais le calcul exact.",
      "exemples": ["Combien font 15 % de 240 ?", "Un pull à 45 € avec 30 % de remise", "Partager 187,50 € entre 6"]},

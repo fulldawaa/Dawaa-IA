@@ -7,7 +7,7 @@ from typing import Callable
 
 import httpx
 
-from dawaa import calcul, outils
+from dawaa import calcul, ecran, outils
 from dawaa.outils import agenda as outil_agenda
 
 log = logging.getLogger(__name__)
@@ -37,8 +37,8 @@ Façon de parler :
 - Les messages dictés à la voix contiennent parfois un mot mal reconnu qui se prononce presque pareil :
   comprends-le par le son avant de demander de reformuler (« et face la ligne » = « efface la ligne »,
   « et fesse-la » = « efface-la », « mais un minuteur » = « mets un minuteur »).
-- Après une action réussie, termine par une phrase qui dit ce que tu as fait et où se trouve le résultat,
-  avec l'« emplacement à annoncer » donné par l'outil (ex. : Documents > Dawaa > Lettre.docx).
+- Après avoir créé ou modifié un fichier avec un outil, termine par une phrase qui dit ce que tu as fait et où se
+  trouve le résultat, avec l'« emplacement à annoncer » donné par l'outil (ex. : Documents > Dawaa > Lettre.docx).
   N'affiche jamais de chemin technique commençant par C:\\ : un bouton « Ouvrir » est déjà affiché sous ta réponse.
 
 Règle absolue : un fichier n'existe que si tu as appelé l'outil qui le crée et qu'il a répondu sans erreur.
@@ -47,6 +47,8 @@ Ne dis JAMAIS qu'un fichier est créé, enregistré ou ouvert sans cela. Si l'ut
 Ce que tu sais faire avec tes outils :
 - Chercher sur internet (recherche_web, puis lire_page_web si besoin). Cite la source (le nom du site).
   Utilise-les pour toute information récente : actualités, météo, horaires, prix.
+- Regarder l'écran : quand l'utilisateur dit « regarde mon écran », une capture t'est jointe automatiquement.
+  S'il parle de ce qu'il voit sans le dire, propose-lui de dire « regarde mon écran ».
 - Calculs : quand le programme te donne des « calculs exacts » (en bas de ces consignes), recopie ces résultats
   sans les changer. Sinon, pour un calcul compliqué, donne le résultat en précisant qu'il faut le vérifier.
 - Rédiger, corriger, reformuler ou résumer un texte : fais-le directement dans ta réponse.
@@ -128,6 +130,13 @@ def bloc_fichiers_ouverts(fichiers: list[str]) -> str:
     return ("\n\nDocuments ouverts à l'écran en ce moment (si l'utilisateur parle du fichier « ouvert », « que j'ai "
             "ouvert » ou « à l'écran », c'est l'un d'eux : lis-le avec tableau (action=lire) ou lire_document en donnant "
             "son nom, sans dossier) :\n" + "\n".join(f"- {f}" for f in fichiers))
+
+
+CONSIGNE_ECRAN = ("\n\nUne capture de l'écran de l'utilisateur, prise à l'instant, accompagne sa dernière demande "
+                  "(la fenêtre de Dawaa était cachée pendant la capture). Appuie-toi sur ce que tu y vois : cite les "
+                  "textes et les boutons visibles, et guide l'utilisateur pas à pas (où cliquer). Si un détail n'est "
+                  "pas lisible, dis-le au lieu de le deviner. Tu ne peux pas cliquer à sa place. Tu n'as rien créé : "
+                  "n'annonce aucun emplacement de fichier.")
 
 
 PROMPT_RESUME = ("Résume cette conversation en UNE phrase de 25 mots maximum, en français, à la 3e personne : "
@@ -312,17 +321,27 @@ class Agent:
         sur_texte: Callable[[str], None],
         sur_outil: Callable[[str], None] = lambda _: None,
         sur_effacer: Callable[[], None] = lambda: None,
+        image: bytes | None = None,
+        consigne: str = "",
     ) -> list[dict]:
         """Fait répondre le modèle à la suite de `messages`.
 
         Renvoie les nouveaux messages (assistant / tool) à ajouter à la conversation.
         `sur_effacer` est appelé quand le texte déjà affiché doit être retiré (réponse corrigée).
+        `image` (capture d'écran) accompagne la dernière demande pour cette réponse seulement : elle n'entre pas
+        dans les messages renvoyés, donc ni dans l'historique enregistré ni dans les requêtes suivantes.
+        `consigne` complète le prompt pour cette réponse seulement.
         """
         self.annule = False
         nouveaux: list[dict] = []
         deja_corrige = False
         derniere_demande = next((m["content"] for m in reversed(messages) if m["role"] == "user"), "")
-        supplement = calcul.bloc_calculs(derniere_demande) + outil_agenda.bloc_minuteurs()
+        supplement = calcul.bloc_calculs(derniere_demande) + outil_agenda.bloc_minuteurs() + consigne
+        if image is not None and messages and messages[-1]["role"] == "user":
+            supplement += CONSIGNE_ECRAN
+            messages = [*messages[:-1], {"role": "user", "content": [
+                {"type": "text", "text": messages[-1]["content"]},
+                {"type": "image_url", "image_url": {"url": ecran.en_url(image)}}]}]
         for _ in range(MAX_TOURS_OUTILS):
             message = self._flux(messages + nouveaux, sur_texte, supplement)
             if (not self.annule and not message.get("tool_calls") and not deja_corrige

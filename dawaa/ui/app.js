@@ -682,7 +682,12 @@
       document.documentElement.style.setProperty("--taille", r.tailleTexte + "px");
     },
 
-    premierLancement(tailleGo) {
+    premierLancement(tailleGo, miseAJour) {
+      if (miseAJour) {
+        $("#titre-installation").textContent = "Une nouveauté : je peux regarder votre écran !";
+        $("#texte-installation").innerHTML = "Pour cela, je dois télécharger ma « vue » " +
+          "(<strong id=\"taille-installation\"></strong>). C'est à faire une seule fois.";
+      }
       $("#taille-installation").textContent = String(tailleGo).replace(".", ",") + " Go";
       $("#ecran-installation").hidden = false;
     },

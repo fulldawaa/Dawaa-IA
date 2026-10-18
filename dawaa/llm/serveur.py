@@ -14,6 +14,8 @@ from dawaa.config import chemin_llama_server
 log = logging.getLogger(__name__)
 
 TAILLE_CONTEXTE = 8192
+# Une capture d'écran coûte au plus ce nombre de tokens (sur les 8192 du contexte)
+MAX_TOKENS_IMAGE = 1024
 
 
 def _port_libre() -> int:
@@ -66,8 +68,9 @@ def _tuer_orphelins(exe: Path) -> None:
 
 
 class ServeurLLM:
-    def __init__(self, modele: Path):
+    def __init__(self, modele: Path, vision: Path | None = None):
         self.modele = modele
+        self.vision = vision  # module de vision (mmproj) : sans lui, Dawaa ne peut pas regarder l'écran
         self.port = 0
         self._proc: subprocess.Popen | None = None
 
@@ -95,6 +98,8 @@ class ServeurLLM:
             "--jinja",
             "--no-webui",
         ]
+        if self.vision:
+            cmd += ["--mmproj", str(self.vision), "--image-max-tokens", str(MAX_TOKENS_IMAGE)]
         log.info("Démarrage llama-server : %s", " ".join(cmd))
         self._proc = subprocess.Popen(
             cmd,

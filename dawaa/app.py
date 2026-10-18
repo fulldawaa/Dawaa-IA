@@ -1,4 +1,5 @@
 """Cœur de l'application : relie l'interface (JS), le modèle, la voix et l'historique."""
+import ctypes
 import json
 import logging
 import os
@@ -14,7 +15,7 @@ import httpx
 import webview
 from webview.dom import DOMEventHandler
 
-from dawaa import accueil, config, dates, demarrage, premier_lancement
+from dawaa import accueil, config, dates, demarrage, ecran, premier_lancement
 from dawaa.config import Reglages
 from dawaa.llm.agent import Agent, bloc_fichiers_ouverts, bloc_memoire
 from dawaa.llm.serveur import ServeurLLM
@@ -119,7 +120,7 @@ class Application:
             self._etat("demarrage", "Je me prépare, quelques secondes…")
             chargement_voix = threading.Thread(target=self._charger_voix, daemon=True)
             chargement_voix.start()
-            self._serveur = ServeurLLM(config.DOSSIER_MODELES / modele)
+            self._serveur = ServeurLLM(config.DOSSIER_MODELES / modele, premier_lancement.chemin_vision(modele))
             self._serveur.demarrer()
             self._agent = Agent(self._serveur.url, contexte=self._contexte_memoire)
             chargement_voix.join()
@@ -144,7 +145,9 @@ class Application:
     def _premier_lancement(self, modele: str) -> None:
         fichiers = premier_lancement.manquants(modele)
         taille_go = sum(f.taille for f in fichiers) / 1e9
-        self._js("premierLancement", round(taille_go, 1))
+        # Dawaa déjà installé avant l'arrivée de « regarde mon écran » : il ne manque que la vue
+        mise_a_jour = fichiers == [premier_lancement.VISION[modele]]
+        self._js("premierLancement", round(taille_go, 1), mise_a_jour)
         while True:
             self._telechargement.wait()
             self._telechargement.clear()
@@ -193,6 +196,7 @@ class Application:
                 contenu += f"\n[Fichier joint : {f}]"
             self._messages.append({"role": "user", "content": contenu})
             navigation.contexte.derniere_demande = texte
+            image, consigne = self._regarder_ecran(texte)
             self._etat("reflechit")
             self._js("debutReponse")
             if oral:
@@ -223,7 +227,7 @@ class Application:
                     self._lecteur.arreter()
 
             try:
-                nouveaux = self._agent.repondre(self._messages, sur_texte, sur_outil, sur_effacer)
+                nouveaux = self._agent.repondre(self._messages, sur_texte, sur_outil, sur_effacer, image, consigne)
             except httpx.HTTPError:
                 log.exception("Erreur du moteur IA")
                 vider()
@@ -242,6 +246,37 @@ class Application:
                 self._etat("pret")
         finally:
             self._en_reponse.release()
+
+    def _regarder_ecran(self, texte: str) -> tuple[bytes | None, str]:
+        """« Regarde mon écran » : capture à joindre à la demande, ou consigne si c'est impossible."""
+        if not ecran.demande_capture(texte):
+            return None, ""
+        if not self._serveur.vision:
+            return None, ("\n\nL'utilisateur demande de regarder son écran, mais ta vue n'est pas encore installée : "
+                          "dis-lui de fermer puis relancer Dawaa, qui la téléchargera (environ 0,7 Go).")
+        self._etat("outil", "Je regarde votre écran…")
+        cachee = self._cacher_fenetre()
+        try:
+            return ecran.capturer(), ""
+        except Exception:
+            log.exception("Capture d'écran impossible")
+            return None, "\n\nLa capture de l'écran a échoué : dis-le simplement à l'utilisateur."
+        finally:
+            if cachee:
+                self.fenetre.show()
+
+    def _cacher_fenetre(self) -> bool:
+        """Cache la fenêtre de Dawaa le temps de la capture ; vrai si elle était affichée."""
+        try:
+            fenetre = ctypes.windll.user32.FindWindowW(None, self.fenetre.title)
+            if not fenetre or not ctypes.windll.user32.IsWindowVisible(fenetre) or ctypes.windll.user32.IsIconic(fenetre):
+                return False
+            self.fenetre.hide()
+            time.sleep(0.4)  # le temps que Windows redessine ce qu'il y a derrière
+            return True
+        except Exception:
+            log.exception("Impossible de cacher la fenêtre")
+            return False
 
     def _redemarrer_moteur_si_besoin(self) -> None:
         try:

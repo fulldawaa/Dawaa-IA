@@ -35,6 +35,16 @@ MODELES_LLM = {
         MODELE_2B, 1_280_835_840, "aaf42c8b7c3cab2bf3d69c355048d4a0ee9973d48f16c731c0520ee914699223"),
 }
 
+# Module de vision de chaque modèle (pour « regarde mon écran ») : même dépôt et même version que le modèle
+VISION = {
+    MODELE_4B: Fichier(
+        f"{HF}/unsloth/Qwen3.5-4B-GGUF/resolve/e87f176479d0855a907a41277aca2f8ee7a09523/mmproj-F16.gguf",
+        "Qwen3.5-4B-mmproj-F16.gguf", 672_423_616, "cd88edcf8d031894960bb0c9c5b9b7e1fea6ebee02b9f7ce925a00d12891f864"),
+    MODELE_2B: Fichier(
+        f"{HF}/unsloth/Qwen3.5-2B-GGUF/resolve/f6d5376be1edb4d416d56da11e5397a961aca8ae/mmproj-F16.gguf",
+        "Qwen3.5-2B-mmproj-F16.gguf", 668_227_264, "7035e9cb8d7c6a9681d07eef9a364783e86ea4cd73faab2eabb4f43a101830c7"),
+}
+
 DOSSIER_WHISPER = "whisper-small"
 _WHISPER = f"{HF}/Systran/faster-whisper-small/resolve/536b0662742c02347bc0e980a01041f333bce120"
 FICHIERS_WHISPER = [
@@ -53,7 +63,13 @@ def choisir_modele() -> str:
 
 
 def fichiers_requis(modele: str) -> list[Fichier]:
-    return [MODELES_LLM[modele], *FICHIERS_WHISPER]
+    return [MODELES_LLM[modele], VISION[modele], *FICHIERS_WHISPER]
+
+
+def chemin_vision(modele: str) -> Path | None:
+    """Le module de vision du modèle, s'il est complet (sinon Dawaa marche sans voir l'écran)."""
+    f = VISION.get(modele)
+    return config.DOSSIER_MODELES / f.destination if f and _complet(f) else None
 
 
 def _complet(f: Fichier) -> bool:

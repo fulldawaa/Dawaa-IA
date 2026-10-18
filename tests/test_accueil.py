@@ -54,7 +54,7 @@ def test_messagerie_selon_l_adresse():
 
 def test_apercu_et_suggestions():
     ids = [f["id"] for f in accueil.apercu(["excel", "agenda"])]
-    assert ids[:3] == ["voix", "agenda", "excel"] and ids[-3:] == ["memoire", "calculs", "raccourcis"]
+    assert ids[:3] == ["voix", "agenda", "excel"] and ids[-4:] == ["memoire", "ecran", "calculs", "raccourcis"]
     assert len(ids) == len(set(ids)) == len(accueil.FONCTIONS) + len(accueil.FONCTIONS_DE_BASE)
     assert [s["titre"] for s in accueil.suggestions([])] == ["Écrire une lettre", "Faire un tableau Excel",
                                                              "Chercher sur internet"]
