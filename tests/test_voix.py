@@ -19,3 +19,26 @@ Fichier : C:\\Users\\moi\\Documents\\Dawaa\\Dépenses.xlsx"""
     assert "le lien affiché" in propre
     assert "le fichier" in propre and "C:\\" not in propre
     assert "premier point" in propre and "- premier" not in propre
+
+
+def test_efface_mal_entendu_corrige():
+    from dawaa.voix.stt import corriger
+    assert corriger("et face la première ligne.") == "Efface la première ligne."
+    assert corriger("Et fesse-la.") == "Efface-la."
+    assert corriger("Aie Faises Leu") == "Efface-le"
+    assert corriger("et fasse") == "Efface"
+    # « face » utilisé normalement : on ne touche à rien
+    assert corriger("Et face à la mer, on est bien ?") == "Et face à la mer, on est bien ?"
+    assert corriger("La maison fait face la mer") == "La maison fait face la mer"
+
+
+def test_phrases_inventees_ignorees():
+    from dawaa.voix.stt import corriger
+    assert corriger("Sous-titres réalisés par la communauté Amara.org") == ""
+    assert corriger("Merci d'avoir regardé cette vidéo !") == ""
+
+
+def test_vocabulaire_avec_les_noms():
+    from dawaa.voix.stt import VOCABULAIRE, vocabulaire
+    assert vocabulaire() == VOCABULAIRE
+    assert vocabulaire(["Yohan", "", "Nicole Martin"]).endswith(" Noms : Yohan, Nicole Martin.")

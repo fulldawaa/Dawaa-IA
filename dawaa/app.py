@@ -292,7 +292,9 @@ class Application:
 
     def _transcrire(self, audio) -> None:
         try:
-            texte = self._transcripteur.transcrire(audio)
+            # Le prénom et les contacts aident Whisper à reconnaître les noms (« envoie un mail à Nicole »)
+            noms = [self.reglages.prenom, *(c["nom"] for c in self.memoire.contacts())]
+            texte = self._transcripteur.transcrire(audio, noms)
         except Exception:
             log.exception("Transcription impossible")
             texte = ""

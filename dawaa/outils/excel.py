@@ -363,10 +363,11 @@ def lire_tableau_excel(chemin: str, dossier: str = "", feuille: str = "") -> str
 
 
 TYPES_MODIFICATION = ("ajouter_ligne", "ajouter_colonne", "ajouter_total", "trier", "modifier_cellule",
-                      "supprimer_ligne", "mettre_en_forme")
+                      "supprimer_ligne", "supprimer_colonne", "mettre_en_forme")
 SYNONYMES_MODIFICATION = {"tri": "trier", "trie": "trier", "ligne": "ajouter_ligne", "ajout_ligne": "ajouter_ligne",
                           "colonne": "ajouter_colonne", "ajout_colonne": "ajouter_colonne", "total": "ajouter_total",
-                          "modifier": "modifier_cellule", "cellule": "modifier_cellule", "supprimer": "supprimer_ligne",
+                          "modifier": "modifier_cellule", "cellule": "modifier_cellule", "supprimer": "supprimer_ligne", "effacer_ligne": "supprimer_ligne",
+                          "effacer_colonne": "supprimer_colonne",
                           "mise_en_forme": "mettre_en_forme", "mettre_en_page": "mettre_en_forme"}
 
 
@@ -468,6 +469,11 @@ def modifier_tableau_excel(chemin: str, actions: list[dict]) -> str:
             col = _index_colonne(ws, action.get("colonne", ""))
             ws.cell(row=ligne + 1, column=col, value=_nombre(action.get("valeur")))
             faits.append(f"cellule ligne {ligne}, colonne « {ws.cell(row=1, column=col).value} » modifiée")
+        elif type_ == "supprimer_colonne":
+            col = _index_colonne(ws, action.get("colonne", ""))
+            nom = ws.cell(row=1, column=col).value
+            ws.delete_cols(col)
+            faits.append(f"colonne « {nom} » supprimée")
         elif type_ == "supprimer_ligne":
             ligne = int(action.get("ligne", 0))
             if ligne < 1 or ligne > _derniere_ligne_donnees(ws) - 1:
@@ -584,7 +590,7 @@ SCHEMAS = [
                     "ajouter_colonne {nom, valeurs} ou {nom, operation, colonnes:[A,B]} ou {nom, operation, colonnes:[A], nombre} "
                     "avec operation = "
                     "additionner|soustraire|multiplier|diviser, ajouter_total {colonnes?}, trier {colonne, ordre: "
-                    "croissant|decroissant}, modifier_cellule {ligne, colonne, valeur}, supprimer_ligne {ligne}, "
+                    "croissant|decroissant}, modifier_cellule {ligne, colonne, valeur}, supprimer_ligne {ligne}, supprimer_colonne {colonne}, "
                     "mettre_en_forme {}. Les lignes sont numérotées à partir de 1 sous les titres. "
                     'Ex : [{"type": "ajouter_ligne", "valeurs": ["Électricité", 95]}, '
                     '{"type": "trier", "colonne": "Montant", "ordre": "decroissant"}]')},

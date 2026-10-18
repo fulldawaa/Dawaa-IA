@@ -157,3 +157,17 @@ def test_colonne_calculee_avec_un_nombre():
     erreur = outils.executer("tableau", {"action": "modifier", "chemin": str(_creer()), "modifications": [
         {"type": "ajouter_colonne", "nom": "Par mois", "operation": "diviser", "colonnes": ["Montant"]}]})
     assert '"nombre": 12' in erreur
+
+
+def test_supprimer_une_colonne():
+    resultat = outils.executer("tableau", {"action": "modifier", "chemin": str(_creer()),
+                                           "modifications": [{"type": "effacer_colonne", "colonne": "Quantité"}]})
+    assert "colonne « Quantité » supprimée" in resultat
+    assert [c.value for c in load_workbook(_chemin(resultat)).active[1]] == ["Poste", "Montant"]
+
+
+def test_refus_de_modifier_un_tableau_corrige():
+    from dawaa.llm.agent import CORRECTION_TABLEAU, correction_necessaire
+    reponse = "Je ne peux pas supprimer une ligne de votre fichier Excel directement. Vous devez le faire vous-même."
+    assert correction_necessaire("Efface la première ligne.", reponse) == CORRECTION_TABLEAU
+    assert correction_necessaire("Supprime le fichier budget", "Je ne peux pas supprimer de fichier.") is None

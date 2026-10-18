@@ -34,6 +34,9 @@ Façon de parler :
 - Va droit au but. Pas de longues introductions.
 - Vouvoie toujours l'utilisateur : dis « vous », jamais « tu » (sauf s'il demande le tutoiement).
 - Si la demande n'est pas claire, pose UNE seule question précise.
+- Les messages dictés à la voix contiennent parfois un mot mal reconnu qui se prononce presque pareil :
+  comprends-le par le son avant de demander de reformuler (« et face la ligne » = « efface la ligne »,
+  « et fesse-la » = « efface-la », « mais un minuteur » = « mets un minuteur »).
 - Après une action réussie, termine par une phrase qui dit ce que tu as fait et où se trouve le résultat,
   avec l'« emplacement à annoncer » donné par l'outil (ex. : Documents > Dawaa > Lettre.docx).
   N'affiche jamais de chemin technique commençant par C:\\ : un bouton « Ouvrir » est déjà affiché sous ta réponse.
@@ -84,7 +87,9 @@ Ce que tu sais faire avec tes outils :
   S'il demande un raccourci enregistré (« fais ma routine du matin »), appelle memoire avec action=lancer_raccourci.
 
 Tu ne peux pas : envoyer un e-mail toi-même (tu le prépares seulement), acheter, remplir des formulaires sur internet, lancer des programmes,
-supprimer ou déplacer des fichiers, ni toucher aux réglages de l'ordinateur. Dis-le simplement si on te le demande.
+supprimer ou déplacer des fichiers entiers, ni toucher aux réglages de l'ordinateur. Dis-le simplement si on te le demande.
+Mais tu PEUX effacer une ligne ou une colonne d'un tableau, et le modifier : outil tableau, action=modifier
+(supprimer_ligne, supprimer_colonne…), qui enregistre une copie.
 
 Nous sommes le {date}. Les fichiers que tu crées sont rangés dans le dossier Documents > Dawaa.{contexte}"""
 
@@ -169,7 +174,15 @@ RAPPEL_ANNONCE = re.compile(r"\b(lancé|programmé|réglé|activé|démarré|ajo
 CORRECTION_RAPPEL = ("[Message automatique] Tu as annoncé un minuteur ou un rappel sans appeler l'outil agenda : il "
                      "n'existe PAS. Appelle maintenant agenda avec action=ajouter, un titre court et quand = les mots "
                      "exacts de l'utilisateur (« 10 minutes », « mardi à 15 h »).")
-CORRECTIONS = (CORRECTION_FICHIER, CORRECTION_RECHERCHE, CORRECTION_AGENDA, CORRECTION_EMAIL, CORRECTION_RAPPEL)
+# Garde-fou : le modèle dit ne pas pouvoir modifier un tableau (il confond avec « supprimer un fichier »)
+DEMANDE_TABLEAU = re.compile(r"\b(efface|effacer|supprime|supprimer|enlève|enlever|retire|retirer|ajoute|ajouter|"
+                             r"trie|trier|modifie|modifier)\b.*\b(lignes?|colonnes?|cellules?|tableau)\b", re.I)
+REFUS = re.compile(r"\b(je ne (peux|sais) pas|vous devez le faire|faites-le vous-même|il faut le faire vous-même)", re.I)
+CORRECTION_TABLEAU = ("[Message automatique] Tu PEUX modifier ce tableau : appelle maintenant l'outil tableau avec "
+                      'action=modifier et les modifications (ex. {"type": "supprimer_ligne", "ligne": 1}). '
+                      "Une copie est enregistrée, l'original reste intact.")
+CORRECTIONS = (CORRECTION_FICHIER, CORRECTION_RECHERCHE, CORRECTION_AGENDA, CORRECTION_EMAIL, CORRECTION_RAPPEL,
+               CORRECTION_TABLEAU)
 
 
 def annonce_sans_outil(demande: str, texte: str) -> bool:
@@ -181,6 +194,8 @@ def correction_necessaire(demande: str, texte: str) -> str | None:
     """Message de correction à envoyer au modèle s'il a répondu sans appeler l'outil qu'il fallait."""
     if DEMANDE_RAPPEL.search(demande) and RAPPEL_ANNONCE.search(texte):
         return CORRECTION_RAPPEL
+    if DEMANDE_TABLEAU.search(demande) and REFUS.search(texte):
+        return CORRECTION_TABLEAU
     if annonce_sans_outil(demande, texte):
         return CORRECTION_FICHIER
     if DEMANDE_DATE.search(demande) and QUESTION_DATE.search(texte):
