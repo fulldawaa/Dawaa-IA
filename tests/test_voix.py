@@ -41,4 +41,4 @@ def test_phrases_inventees_ignorees():
 def test_vocabulaire_avec_les_noms():
     from dawaa.voix.stt import VOCABULAIRE, vocabulaire
     assert vocabulaire() == VOCABULAIRE
-    assert vocabulaire(["Yohan", "", "Nicole Martin"]).endswith(" Noms : Yohan, Nicole Martin.")
+    assert vocabulaire(["Michel", "", "Nicole Martin"]).endswith(" Noms : Michel, Nicole Martin.")
