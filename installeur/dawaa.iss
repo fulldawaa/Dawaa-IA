@@ -1,6 +1,6 @@
 ﻿; Installateur de Dawaa (Inno Setup 6). Construit par build.ps1.
 #define NomApp "Dawaa"
-#define VersionApp "0.1.0"
+#define VersionApp "0.2.0"
 
 [Setup]
 AppId={{7C1E8F5A-4B2D-4E8A-9D3F-2A6B1C0D9E47}
@@ -43,6 +43,10 @@ Source: "..\dist\Dawaa\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs
 [Icons]
 Name: "{autoprograms}\{#NomApp}"; Filename: "{app}\Dawaa.exe"
 Name: "{autodesktop}\{#NomApp}"; Filename: "{app}\Dawaa.exe"; Tasks: bureau
+
+[Registry]
+; Dawaa s'inscrit lui-même au démarrage de Windows (réglage) ; on retire l'inscription à la désinstallation
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueName: "Dawaa"; ValueType: none; Flags: uninsdeletevalue dontcreatekey
 
 [Run]
 Filename: "{app}\Dawaa.exe"; Description: "Lancer Dawaa maintenant"; Flags: nowait postinstall skipifsilent

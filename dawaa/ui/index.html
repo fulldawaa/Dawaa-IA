@@ -19,6 +19,14 @@
     <div class="titre-liste">Conversations</div>
     <nav id="liste-conversations"></nav>
     <div class="bas-barre">
+      <button id="btn-aide" class="lien-barre">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6V14M12 17.5v.01"/></svg>
+        Ce que je sais faire
+      </button>
+      <button id="btn-agenda" class="lien-barre">
+        <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>
+        Mon agenda
+      </button>
       <button id="btn-memoire" class="lien-barre">
         <svg viewBox="0 0 24 24"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
         Ma mémoire
@@ -38,9 +46,9 @@
     <section id="fil" aria-live="polite">
       <div id="accueil">
         <img src="dawaa.png" alt="" width="64" height="64">
-        <h1>Bonjour ! Comment puis-je vous aider ?</h1>
+        <h1 id="titre-accueil">Bonjour ! Comment puis-je vous aider ?</h1>
         <p class="indice">Écrivez votre question en bas, ou maintenez <kbd class="nom-touche">Ctrl droit</kbd> pour me parler.</p>
-        <div class="suggestions">
+        <div id="suggestions" class="suggestions">
           <button class="suggestion" data-texte="Aide-moi à écrire une lettre pour ">
             <span class="emoji">✉️</span><strong>Écrire une lettre</strong><span>Je vous aide à rédiger</span>
           </button>
@@ -108,7 +116,69 @@
         <input id="reglage-taille" type="range" min="12" max="28" step="1">
         <span style="font-size:1.4em">A</span>
       </div>
+      <label for="reglage-messagerie">Ma messagerie (pour préparer les e-mails)</label>
+      <div class="ligne-reglage"><select id="reglage-messagerie"></select></div>
+      <label for="reglage-son">Sonnerie des rappels</label>
+      <div class="ligne-reglage">
+        <select id="reglage-son"></select>
+        <button id="btn-tester-son" class="btn-secondaire">Écouter</button>
+      </div>
+      <label>Présentation</label>
+      <button id="btn-refaire-accueil" class="btn-secondaire">Refaire la présentation (prénom, e-mail, usages)</button>
+      <label>Rappels de l'agenda</label>
+      <label class="case"><input id="reglage-demarrage" type="checkbox">
+        Démarrer Dawaa avec l'ordinateur, pour ne manquer aucun rappel</label>
       <button id="btn-fermer-reglages" class="btn-principal">Fermer</button>
+    </div>
+  </div>
+
+  <!-- Accueil : faire connaissance, puis ce que Dawaa sait faire -->
+  <div id="ecran-accueil" class="voile" hidden>
+    <div class="carte accueil">
+      <section class="etape" data-etape="1">
+        <img src="dawaa.png" alt="" width="56" height="56">
+        <h2>Bienvenue ! Faisons connaissance</h2>
+        <p>Trois petites questions pour que je vous aide au mieux. Vous pouvez passer chacune d'elles.</p>
+        <label for="accueil-prenom">Comment vous appelez-vous ?</label>
+        <input id="accueil-prenom" placeholder="Votre prénom" autocomplete="given-name" maxlength="40">
+      </section>
+      <section class="etape" data-etape="2" hidden>
+        <h2>Votre adresse e-mail</h2>
+        <p>C'est facultatif. Elle me sert à <strong>préparer vos e-mails</strong> dans la bonne messagerie
+          (Gmail ou Outlook), et à vous écrire à vous-même (« envoie-moi la liste de courses »).</p>
+        <p class="petit">Je n'envoie jamais rien sans vous : je prépare le message, vous le relisez et c'est vous qui
+          cliquez sur « Envoyer ». Votre adresse reste uniquement sur cet ordinateur.</p>
+        <label for="accueil-email">Votre adresse e-mail</label>
+        <input id="accueil-email" type="email" placeholder="exemple : marie.dupont@gmail.com" autocomplete="email">
+        <p id="accueil-erreur" class="erreur petit" hidden></p>
+      </section>
+      <section class="etape" data-etape="3" hidden>
+        <h2>Que voulez-vous faire avec Dawaa ?</h2>
+        <p class="petit">Cochez tout ce qui vous intéresse : je vous le proposerai en premier.</p>
+        <div id="accueil-usages" class="grille-usages"></div>
+      </section>
+      <section class="etape" data-etape="4" hidden>
+        <h2>Voici ce que je sais faire</h2>
+        <p class="petit">Dites-moi simplement ces phrases, ou écrivez-les.</p>
+        <div id="accueil-fonctions" class="liste-fonctions"></div>
+      </section>
+      <p id="accueil-telechargement" class="petit" hidden></p>
+      <div class="boutons-accueil">
+        <span id="accueil-etape" class="petit"></span>
+        <button id="accueil-passer" class="btn-secondaire">Passer</button>
+        <button id="accueil-suivant" class="btn-principal">Suivant</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mon agenda -->
+  <div id="ecran-agenda" class="voile" hidden>
+    <div class="carte memoire">
+      <h2>Mon agenda</h2>
+      <p class="petit">Dites par exemple « rappelle-moi le dentiste mardi à 15 h »,
+        « mes médicaments tous les jours à 8 h » ou « qu'est-ce que j'ai demain ? ».</p>
+      <ul id="liste-agenda" class="liste-memoire"></ul>
+      <button id="btn-fermer-agenda" class="btn-principal">Fermer</button>
     </div>
   </div>
 
@@ -131,6 +201,17 @@
         <button type="submit" class="btn-secondaire">Ajouter</button>
       </form>
       <p id="erreur-favori" class="erreur petit" hidden></p>
+
+      <h3>Mes contacts</h3>
+      <p class="petit">Dites ensuite par exemple « envoie un mail à Nicole pour lui donner la date du restaurant ».
+        Dawaa prépare le message : vous le relisez et cliquez vous-même sur Envoyer.</p>
+      <ul id="liste-contacts" class="liste-memoire"></ul>
+      <form id="form-contact" class="form-favori">
+        <input id="contact-nom" placeholder="Nom (ex. : Nicole)" autocomplete="off">
+        <input id="contact-email" type="email" placeholder="Adresse e-mail" autocomplete="off">
+        <button type="submit" class="btn-secondaire">Ajouter</button>
+      </form>
+      <p id="erreur-contact" class="erreur petit" hidden></p>
 
       <h3>Mes raccourcis</h3>
       <p class="petit">Faites une ou plusieurs actions, puis dites « retiens ça sous le nom ma routine du matin ».

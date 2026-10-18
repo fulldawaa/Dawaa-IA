@@ -7,22 +7,27 @@ import subprocess
 import threading
 import time
 import webbrowser
+from datetime import datetime
 from pathlib import Path
 
 import httpx
 import webview
 from webview.dom import DOMEventHandler
 
-from dawaa import config, premier_lancement
+from dawaa import accueil, config, dates, demarrage, premier_lancement
 from dawaa.config import Reglages
 from dawaa.llm.agent import Agent, bloc_fichiers_ouverts, bloc_memoire
 from dawaa.llm.serveur import ServeurLLM
 from dawaa import outils
+from dawaa.outils import agenda as outil_agenda
+from dawaa.outils import email as outil_email
 from dawaa.outils import navigation, ordinateur, souvenirs
 from dawaa.outils.fichiers import MARQUE_CHEMIN
+from dawaa.stockage.agenda import Agenda
 from dawaa.stockage.historique import Historique
 from dawaa.stockage.memoire import Memoire
 from dawaa.stockage.sensible import masquer
+from dawaa.voix.alarme import SONS, Alarme
 from dawaa.voix.ecoute import Enregistreur, ToucheParler, bip, nom_lisible
 from dawaa.voix.tts import VOIX_DISPONIBLES, Lecteur
 
@@ -52,8 +57,13 @@ class Application:
         self.reglages = Reglages.charger()
         self.historique = Historique()
         self.memoire = Memoire()
+        self.agenda = Agenda()
         souvenirs.configurer(self.memoire)
         navigation.configurer(self.memoire)
+        outil_agenda.configurer(self.agenda)
+        outil_email.configurer(self.memoire, lambda: self.reglages.messagerie)
+        self.notifier_windows = None  # bulle près de l'horloge, fournie par main.py
+        self.alarme = Alarme()
         self._resume_en_cours = threading.Lock()
         self.fenetre: webview.Window | None = None
         self.quitter_demande = False
@@ -93,12 +103,16 @@ class Application:
         """Appelé dans un fil séparé une fois la fenêtre affichée."""
         try:
             config.preparer_dossiers()
+            demarrage.appliquer(self.reglages.demarrer_avec_windows)
+            threading.Thread(target=self._surveiller_rappels, daemon=True).start()
             self._installer_glisser_deposer()
             self._js("appliquerReglages", self._reglages_pour_ui())
             self._js("listeConversations", self.historique.lister())
             modele = self.reglages.modele or premier_lancement.choisir_modele()
             if premier_lancement.manquants(modele):
-                self._premier_lancement(modele)
+                self._premier_lancement(modele)  # l'accueil s'ouvre pendant le téléchargement
+            elif not self.reglages.accueil_fait:
+                self._js("ouvrirAccueil", 1)
             if self.reglages.modele != modele:
                 self.reglages.modele = modele
                 self.reglages.enregistrer()
@@ -289,11 +303,84 @@ class Application:
         self._js("messageUtilisateur", texte)
         self.envoyer(texte, [], oral=True)
 
+    # ---------- rappels de l'agenda ----------
+
+    def _surveiller_rappels(self) -> None:
+        while not self.quitter_demande:
+            try:
+                self.verifier_rappels()
+            except Exception:
+                log.exception("Vérification des rappels impossible")
+            time.sleep(5)  # un minuteur de 30 secondes ne doit pas sonner avec 20 secondes de retard
+
+    def verifier_rappels(self, maintenant: datetime | None = None) -> list[str]:
+        """Annonce les rappels dont c'est l'heure ; regroupe ceux manqués pendant que Dawaa était fermé."""
+        maintenant = maintenant or datetime.now()
+        dus = self.agenda.rappels_dus(maintenant)
+        annonces = []
+        for r in (r for r in dus if not r["manque"]):
+            if r["avance"] and r["quand"] > maintenant:
+                annonces.append(f"Rappel : {r['titre']}, {dates.decrire(r['quand'], maintenant)}.")
+            elif dates.MINUTEUR.search(dates._simplifier(r["titre"])):
+                annonces.append(f"{r['titre']} : c'est terminé !")
+            else:
+                annonces.append(f"C'est l'heure : {r['titre']}.")
+        manques = [r for r in dus if r["manque"]]
+        if manques:
+            liste = " ; ".join(f"{r['titre']} ({dates.decrire(r['quand'], maintenant)})" for r in manques)
+            annonces.append(f"Rappel manqué pendant que Dawaa était fermé : {liste}.")
+        for r in dus:
+            self.agenda.marquer_rappele(r, maintenant)
+        if annonces:
+            self._annoncer(annonces)
+        if dus:
+            self._js("agendaModifie")
+        return annonces
+
+    def _annoncer(self, annonces: list[str]) -> None:
+        """Bandeau et bulle pour chaque rappel, fenêtre au premier plan et alarme en boucle
+        jusqu'à « J'ai compris » (1 minute au plus), puis la voix."""
+        for texte in annonces:
+            log.info("Rappel : %s", texte)
+            self._js("rappel", texte)
+            if self.notifier_windows:
+                try:
+                    self.notifier_windows(texte, "Dawaa — rappel")
+                except Exception:
+                    log.exception("Notification Windows impossible")
+        self._premier_plan(True)
+
+        def ensuite():
+            self._premier_plan(False)
+            self._lecteur.dire(" ".join(annonces))
+
+        self.alarme.sonner(self.reglages.son_alarme, ensuite)
+
+    def _premier_plan(self, actif: bool) -> None:
+        """Pendant l'alarme, la fenêtre s'affiche par-dessus les autres programmes."""
+        if not self.fenetre:
+            return
+        try:
+            if actif:
+                self.fenetre.show()
+                self.fenetre.restore()
+            self.fenetre.on_top = actif
+        except Exception:
+            log.exception("Impossible de mettre la fenêtre au premier plan")
+
+    def contenu_agenda(self) -> list[dict]:
+        maintenant = datetime.now()
+        return [{"id": r["id"], "titre": r["titre"], "quand": dates.decrire(r["quand"], maintenant),
+                 "repetition": dates.REPETITIONS.get(r["repetition"], ""),
+                 "avance": outil_agenda._duree(r["avance"]) + " avant" if r["avance"] else ""}
+                for r in self.agenda.a_venir(maintenant)]
+
     # ---------- mémoire ----------
 
     def _contexte_memoire(self) -> str:
         return (bloc_memoire(self.memoire.pour_prompt(), self.historique.resumes_recents(5),
-                             [r["nom"] for r in self.memoire.raccourcis()])
+                             [r["nom"] for r in self.memoire.raccourcis()], self.reglages.prenom,
+                             bool(self.reglages.email))
                 + bloc_fichiers_ouverts(ordinateur.fichiers_ouverts()))
 
     def _resumer_en_arriere_plan(self) -> None:
@@ -327,7 +414,8 @@ class Application:
     def contenu_memoire(self) -> dict:
         raccourcis = [{"id": r["id"], "nom": r["nom"], "actions": [souvenirs.decrire_action(a) for a in r["actions"]]}
                       for r in self.memoire.raccourcis()]
-        return {"souvenirs": self.memoire.souvenirs(), "favoris": self.memoire.favoris(), "raccourcis": raccourcis}
+        return {"souvenirs": self.memoire.souvenirs(), "favoris": self.memoire.favoris(), "raccourcis": raccourcis,
+                "contacts": self.memoire.contacts()}
 
     # ---------- conversations ----------
 
@@ -365,6 +453,14 @@ class Application:
             "voix": self.reglages.voix,
             "voixListe": VOIX_DISPONIBLES,
             "tailleTexte": self.reglages.taille_texte,
+            "demarrerWindows": self.reglages.demarrer_avec_windows,
+            "sonAlarme": self.reglages.son_alarme,
+            "sonsAlarme": SONS,
+            "messagerie": self.reglages.messagerie,
+            "messageries": outil_email.MESSAGERIES,
+            "prenom": self.reglages.prenom,
+            "accueilFait": self.reglages.accueil_fait,
+            "suggestions": accueil.suggestions(self.reglages.usages),
         }
 
     def modifier_reglages(self, valeurs: dict) -> dict:
@@ -372,6 +468,13 @@ class Application:
             self.reglages.voix = self._lecteur.voix = valeurs["voix"]
         if "tailleTexte" in valeurs:
             self.reglages.taille_texte = max(12, min(28, int(valeurs["tailleTexte"])))
+        if "sonAlarme" in valeurs and (valeurs["sonAlarme"] in SONS or valeurs["sonAlarme"] == ""):
+            self.reglages.son_alarme = valeurs["sonAlarme"]
+        if valeurs.get("messagerie") in outil_email.MESSAGERIES:
+            self.reglages.messagerie = valeurs["messagerie"]
+        if "demarrerWindows" in valeurs:
+            self.reglages.demarrer_avec_windows = bool(valeurs["demarrerWindows"])
+            demarrage.appliquer(self.reglages.demarrer_avec_windows)
         self.reglages.enregistrer()
         return self._reglages_pour_ui()
 
@@ -465,6 +568,45 @@ class Api:
 
     def supprimer_raccourci(self, id_):
         self._app.memoire.supprimer_raccourci(int(id_))
+        return self._app.contenu_memoire()
+
+    def agenda(self):
+        return self._app.contenu_agenda()
+
+    def accueil(self):
+        r = self._app.reglages
+        return {"prenom": r.prenom, "email": r.email, "usagesChoisis": r.usages,
+                "usages": [{"id": f["id"], "emoji": f["emoji"], "titre": f["titre"]} for f in accueil.FONCTIONS]}
+
+    def apercu(self, usages=None):
+        return accueil.apercu(list(usages or []))
+
+    def enregistrer_accueil(self, prenom, email, usages):
+        erreur = accueil.enregistrer(self._app.reglages, self._app.memoire, prenom, email, list(usages or []))
+        if erreur:
+            return {"erreur": erreur}
+        self._app._js("appliquerReglages", self._app._reglages_pour_ui())
+        return {"ok": True}
+
+    def arreter_alarme(self):
+        self._app.alarme.arreter()
+
+    def essayer_alarme(self, son):
+        Alarme.essayer(str(son))
+
+    def supprimer_rendez_vous(self, id_):
+        self._app.agenda.supprimer(int(id_))
+        return self._app.contenu_agenda()
+
+    def ajouter_contact(self, nom, email):
+        try:
+            self._app.memoire.ajouter_contact(str(nom), str(email))
+        except ValueError as e:
+            return {**self._app.contenu_memoire(), "erreurContact": str(e)}
+        return self._app.contenu_memoire()
+
+    def supprimer_contact(self, id_):
+        self._app.memoire.supprimer_contact(int(id_))
         return self._app.contenu_memoire()
 
     def supprimer_favori(self, id_):

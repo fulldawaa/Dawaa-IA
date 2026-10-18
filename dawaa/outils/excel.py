@@ -362,12 +362,35 @@ def lire_tableau_excel(chemin: str, dossier: str = "", feuille: str = "") -> str
     return "\n".join(parties)
 
 
+TYPES_MODIFICATION = ("ajouter_ligne", "ajouter_colonne", "ajouter_total", "trier", "modifier_cellule",
+                      "supprimer_ligne", "mettre_en_forme")
+SYNONYMES_MODIFICATION = {"tri": "trier", "trie": "trier", "ligne": "ajouter_ligne", "ajout_ligne": "ajouter_ligne",
+                          "colonne": "ajouter_colonne", "ajout_colonne": "ajouter_colonne", "total": "ajouter_total",
+                          "modifier": "modifier_cellule", "cellule": "modifier_cellule", "supprimer": "supprimer_ligne",
+                          "mise_en_forme": "mettre_en_forme", "mettre_en_page": "mettre_en_forme"}
+
+
+def _modification(action) -> dict:
+    """Le petit modèle écrit parfois {"ajouter_ligne": {...}} ou {"type": "tri"} : on remet la forme attendue."""
+    if isinstance(action, str):
+        action = {"type": action}
+    if not isinstance(action, dict):
+        action = {}
+    type_ = str(action.get("type") or action.get("action") or "").lower().replace(" ", "_")
+    if not type_:
+        cle = next((c for c in action if SYNONYMES_MODIFICATION.get(c.lower(), c.lower()) in TYPES_MODIFICATION), None)
+        if cle is not None:
+            type_, contenu = cle.lower(), action[cle]
+            action = {**{k: v for k, v in action.items() if k != cle}, **(contenu if isinstance(contenu, dict) else {})}
+    return {**action, "type": SYNONYMES_MODIFICATION.get(type_, type_)}
+
+
 def modifier_tableau_excel(chemin: str, actions: list[dict]) -> str:
     source, wb = _charger(chemin)
     ws = wb.active
     faits = []
-    for action in actions or []:
-        type_ = str(action.get("type", "")).lower()
+    for action in map(_modification, actions or []):
+        type_ = action["type"]
         if type_ == "ajouter_ligne":
             valeurs = [_nombre(v) for v in action.get("valeurs", [])]
             total = _a_ligne_total(ws)
@@ -388,12 +411,28 @@ def modifier_tableau_excel(chemin: str, actions: list[dict]) -> str:
                 symboles = {"additionner": "+", "soustraire": "-", "multiplier": "*", "diviser": "/"}
                 if operation not in symboles:
                     raise ErreurOutil("Opération inconnue : utilisez additionner, soustraire, multiplier ou diviser.")
-                noms = action.get("colonnes") or []
-                if len(noms) != 2:
-                    raise ErreurOutil("Pour un calcul, il faut indiquer exactement deux colonnes.")
-                a, b = (get_column_letter(_index_colonne(ws, n)) for n in noms)
+                noms = list(action.get("colonnes") or [])
+                # « divise le montant par 12 » : une colonne et un nombre (champ nombre, ou nombre mis dans colonnes)
+                nombre = next((action[c] for c in ("nombre", "valeur", "par") if action.get(c) not in (None, "")), None)
+                if nombre is None and len(noms) == 2 and isinstance(_nombre(noms[1]), (int, float)):
+                    nombre = noms.pop()
+                if nombre is not None:
+                    if len(noms) != 1 or not isinstance(_nombre(nombre), (int, float)):
+                        raise ErreurOutil("Pour calculer avec un nombre, indique une seule colonne et le nombre "
+                                          '(ex. {"operation": "diviser", "colonnes": ["Montant"], "nombre": 12}).')
+                    if operation == "diviser" and _nombre(nombre) == 0:
+                        raise ErreurOutil("Impossible de diviser par zéro.")
+                    lettre = get_column_letter(_index_colonne(ws, noms[0]))
+                    operandes = lambda r: (f"{lettre}{r}", str(_nombre(nombre)))
+                elif len(noms) == 2:
+                    a, b = (get_column_letter(_index_colonne(ws, n)) for n in noms)
+                    operandes = lambda r: (f"{a}{r}", f"{b}{r}")
+                else:
+                    raise ErreurOutil("Pour un calcul, indique deux colonnes, ou une colonne et un nombre "
+                                      '(ex. {"operation": "diviser", "colonnes": ["Montant"], "nombre": 12}).')
                 for r in range(2, _derniere_ligne_donnees(ws) + 1):
-                    ws.cell(row=r, column=col, value=f"={a}{r}{symboles[operation]}{b}{r}")
+                    gauche, droite = operandes(r)
+                    ws.cell(row=r, column=col, value=f"={gauche}{symboles[operation]}{droite}")
             else:
                 for r, v in enumerate(action.get("valeurs", []), start=2):
                     ws.cell(row=r, column=col, value=_nombre(v))
@@ -440,7 +479,9 @@ def modifier_tableau_excel(chemin: str, actions: list[dict]) -> str:
         elif type_ == "mettre_en_forme":
             faits.append("mise en forme appliquée")
         else:
-            raise ErreurOutil(f"Action inconnue : « {type_} ».")
+            raise ErreurOutil(f"Modification inconnue : « {type_} ». Chaque modification a un champ type parmi "
+                              f"{', '.join(TYPES_MODIFICATION)}. Ex : "
+                              '[{"type": "ajouter_ligne", "valeurs": ["Électricité", 95]}]. ' "Rien n'a été modifié.")
     if not faits:
         raise ErreurOutil("Aucune modification demandée.")
     _mettre_en_forme(ws)
@@ -481,73 +522,81 @@ def ajouter_graphique_excel(chemin: str, type: str, colonne_x: str, colonnes_y: 
     return "Graphique ajouté à droite du tableau (copie du fichier). " + decrire_fichier(destination)
 
 
+def tableau(action: str = "", chemin: str = "", nom: str = "", colonnes: list[str] | None = None,
+            lignes: list[list] | None = None, ligne_total: bool = False, dossier: str = "", feuille: str = "",
+            modifications: list[dict] | None = None, graphique: str = "", colonne_x: str = "",
+            colonnes_y: list[str] | None = None, titre: str = "", **autres) -> str:
+    """Outil unique pour les tableaux : un petit modèle choisit mieux parmi moins d'outils."""
+    # Noms de paramètres des anciens outils (raccourcis enregistrés, ou modèle qui s'en souvient)
+    modifications = modifications or autres.get("actions")
+    graphique = graphique or autres.get("type", "")
+    action = (action or "").lower()
+    if action not in ACTIONS_TABLEAU:  # action oubliée : on la devine d'après les paramètres donnés
+        action = ("creer" if colonnes else "modifier" if modifications else
+                  "graphique" if graphique or colonne_x or colonnes_y else "lire" if chemin else "")
+    if action == "lire":
+        if not chemin:
+            raise ErreurOutil("Indique le nom du fichier à lire (chemin).")
+        return lire_tableau_excel(chemin, dossier, feuille)
+    if action == "creer":
+        return creer_tableau_excel(nom or Path(chemin).stem, colonnes or [], lignes or [], ligne_total)
+    if action == "modifier":
+        if not modifications:
+            raise ErreurOutil("Indique les modifications à faire (modifications : liste d'actions avec un champ type).")
+        return modifier_tableau_excel(chemin, modifications)
+    if action == "graphique":
+        return ajouter_graphique_excel(chemin, graphique, colonne_x, colonnes_y or [], titre)
+    raise ErreurOutil("Action inconnue : utilise « lire », « creer », « modifier » ou « graphique ».")
+
+
+ACTIONS_TABLEAU = ("lire", "creer", "modifier", "graphique")
+# Anciens outils séparés → action de l'outil tableau
+ANCIENS_OUTILS = {"lire_tableau_excel": "lire", "creer_tableau_excel": "creer",
+                  "modifier_tableau_excel": "modifier", "ajouter_graphique_excel": "graphique"}
+
 SCHEMAS = [
     {
-        "name": "creer_tableau_excel",
-        "description": "Crée un nouveau fichier Excel avec un tableau, puis l'ouvre.",
+        "name": "tableau",
+        "description": (
+            "Tableaux Excel (.xlsx, .xls), LibreOffice Calc (.ods) et CSV. "
+            "action=lire : colonnes, premières lignes et totaux/moyennes exacts calculés par le programme ; le fichier "
+            "peut être n'importe où (ex. sur le Bureau), une partie de son nom suffit. "
+            "action=creer : crée un nouveau fichier Excel (nom, colonnes, lignes) et l'ouvre. "
+            "action=modifier : enregistre une copie modifiée (modifications), l'original reste intact. "
+            "action=graphique : ajoute un graphique (graphique, colonne_x, colonnes_y) dans une copie du fichier."),
         "parameters": {
             "type": "object",
             "properties": {
-                "nom": {"type": "string", "description": "Nom du fichier, sans extension. Ex : Dépenses octobre"},
-                "colonnes": {"type": "array", "items": {"type": "string"}, "description": "Titres des colonnes"},
+                "action": {"type": "string", "enum": list(ACTIONS_TABLEAU)},
+                "chemin": {"type": "string", "description": "Fichier à lire, modifier ou compléter : chemin complet ou "
+                                                            "nom (ou partie du nom)"},
+                "dossier": {"type": "string", "description": "Pour lire : où chercher, seulement si l'utilisateur l'a dit "
+                                                             "(Bureau, Documents, Téléchargements…). Sinon, laisser vide"},
+                "feuille": {"type": "string", "description": "Pour lire : nom d'une feuille précise (facultatif)"},
+                "nom": {"type": "string", "description": "Pour creer : nom du fichier, sans extension. Ex : Dépenses octobre"},
+                "colonnes": {"type": "array", "items": {"type": "string"}, "description": "Pour creer : titres des colonnes"},
                 "lignes": {"type": "array", "items": {"type": "array", "items": {}},
-                           "description": "Lignes du tableau, une liste de valeurs par ligne, dans l'ordre des colonnes. Peut être vide."},
-                "ligne_total": {"type": "boolean", "description": "Ajouter une ligne Total qui additionne les colonnes de nombres"},
+                           "description": "Pour creer : une liste de valeurs par ligne, dans l'ordre des colonnes. Peut être vide."},
+                "ligne_total": {"type": "boolean", "description": "Pour creer : ajouter une ligne Total qui additionne "
+                                                                  "les colonnes de nombres"},
+                "modifications": {"type": "array", "items": {"type": "object"}, "description": (
+                    "Pour modifier : liste d'actions, chacune avec un champ type : ajouter_ligne {valeurs}, "
+                    "ajouter_colonne {nom, valeurs} ou {nom, operation, colonnes:[A,B]} ou {nom, operation, colonnes:[A], nombre} "
+                    "avec operation = "
+                    "additionner|soustraire|multiplier|diviser, ajouter_total {colonnes?}, trier {colonne, ordre: "
+                    "croissant|decroissant}, modifier_cellule {ligne, colonne, valeur}, supprimer_ligne {ligne}, "
+                    "mettre_en_forme {}. Les lignes sont numérotées à partir de 1 sous les titres. "
+                    'Ex : [{"type": "ajouter_ligne", "valeurs": ["Électricité", 95]}, '
+                    '{"type": "trier", "colonne": "Montant", "ordre": "decroissant"}]')},
+                "graphique": {"type": "string", "enum": ["barres", "courbe", "camembert"], "description": "Pour graphique"},
+                "colonne_x": {"type": "string", "description": "Pour graphique : colonne des étiquettes (ex : Mois)"},
+                "colonnes_y": {"type": "array", "items": {"type": "string"},
+                               "description": "Pour graphique : colonnes de valeurs à dessiner"},
+                "titre": {"type": "string", "description": "Pour graphique : titre (facultatif)"},
             },
-            "required": ["nom", "colonnes", "lignes"],
-        },
-    },
-    {
-        "name": "lire_tableau_excel",
-        "description": ("Lit un tableau Excel (.xlsx, .xls), LibreOffice Calc (.ods) ou CSV : colonnes, premières lignes, "
-                        "et totaux/moyennes exacts calculés par le programme. "
-                        "Le fichier peut être n'importe où (ex. sur le Bureau) : il suffit d'une partie de son nom."),
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "chemin": {"type": "string", "description": "Chemin complet ou nom (ou partie du nom) du fichier"},
-                "dossier": {"type": "string", "description": "Où chercher, seulement si l'utilisateur l'a dit : Bureau, Documents, Téléchargements… Sinon, laisser vide"},
-                "feuille": {"type": "string", "description": "Nom d'une feuille précise à lire (facultatif)"},
-            },
-            "required": ["chemin"],
-        },
-    },
-    {
-        "name": "modifier_tableau_excel",
-        "description": ("Modifie un fichier Excel existant (une copie est enregistrée, l'original reste intact). "
-                        "Types d'action : ajouter_ligne {valeurs}, ajouter_colonne {nom, valeurs} ou {nom, operation, colonnes:[A,B]} "
-                        "avec operation = additionner|soustraire|multiplier|diviser, ajouter_total {colonnes?}, "
-                        "trier {colonne, ordre: croissant|decroissant}, modifier_cellule {ligne, colonne, valeur}, "
-                        "supprimer_ligne {ligne}, mettre_en_forme {}. Les lignes sont numérotées à partir de 1 sous les titres."),
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "chemin": {"type": "string", "description": "Chemin complet ou nom du fichier"},
-                "actions": {"type": "array", "items": {"type": "object"}, "description": "Liste d'actions, chacune avec un champ type"},
-            },
-            "required": ["chemin", "actions"],
-        },
-    },
-    {
-        "name": "ajouter_graphique_excel",
-        "description": "Ajoute un graphique dans un fichier Excel existant (une copie est enregistrée).",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "chemin": {"type": "string"},
-                "type": {"type": "string", "enum": ["barres", "courbe", "camembert"]},
-                "colonne_x": {"type": "string", "description": "Colonne des étiquettes (ex : Mois)"},
-                "colonnes_y": {"type": "array", "items": {"type": "string"}, "description": "Colonnes de valeurs à dessiner"},
-                "titre": {"type": "string"},
-            },
-            "required": ["chemin", "type", "colonne_x", "colonnes_y"],
+            "required": ["action"],
         },
     },
 ]
 
-FONCTIONS = {
-    "creer_tableau_excel": creer_tableau_excel,
-    "lire_tableau_excel": lire_tableau_excel,
-    "modifier_tableau_excel": modifier_tableau_excel,
-    "ajouter_graphique_excel": ajouter_graphique_excel,
-}
+FONCTIONS = {"tableau": tableau}

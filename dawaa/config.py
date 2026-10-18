@@ -39,6 +39,14 @@ class Reglages:
     taille_texte: int = 16
     modele: str = ""  # nom du fichier GGUF choisi au premier lancement
     modele_voix: str = "small"
+    demarrer_avec_windows: bool = True  # pour que les rappels de l'agenda sonnent
+    son_alarme: str = "Alarm01"  # son d'alarme de Windows, « » = pas de sonnerie
+    messagerie: str = "gmail"  # gmail ou outlook : où les e-mails préparés s'ouvrent
+    # Accueil du premier lancement
+    prenom: str = ""
+    email: str = ""
+    usages: list = field(default_factory=list)  # ce que l'utilisateur veut faire (voir accueil.USAGES)
+    accueil_fait: bool = False
     extras: dict = field(default_factory=dict)
 
     def enregistrer(self) -> None:

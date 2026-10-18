@@ -41,7 +41,7 @@ def test_xls_du_bureau(monkeypatch):
     bureau = fichiers.dossiers_personnels()["bureau"]
     shutil.copy(EXEMPLES / "exemple_tableau.xls", bureau / "EXOS BASES.xls")
     # Le mauvais outil renvoie vers le bon, avec le chemin
-    assert "tableau Excel (outil lire_tableau_excel)" in outils.executer("lire_document", {"chemin": "exos bases"})
+    assert "tableau Excel (outil tableau, action=lire)" in outils.executer("lire_document", {"chemin": "exos bases"})
     assert "Chiffre d'affaires : total" in outils.executer("lire_tableau_excel", {"chemin": "EXOS BASES.xls"})
     # « Lis-moi le fichier » envoyé par erreur à ouvrir_fichier : il est lu
     monkeypatch.setattr(ordinateur.contexte, "derniere_demande", "Lis-moi le fichier exos bases")
@@ -62,8 +62,8 @@ def test_modifier_un_csv_cree_une_copie_xlsx(tmp_path):
 def test_modifier_un_tableau_decale_explique_pourquoi(tmp_path):
     source = tmp_path / "ancien.xls"
     shutil.copy(EXEMPLES / "exemple_tableau.xls", source)
-    resultat = outils.executer("ajouter_graphique_excel", {"chemin": str(source), "type": "barres",
-                                                           "colonne_x": "Groupe d'articles", "colonnes_y": ["Charges"]})
+    resultat = outils.executer("tableau", {"action": "graphique", "chemin": str(source), "graphique": "barres",
+                                           "colonne_x": "Groupe d'articles", "colonnes_y": ["Charges"]})
     assert "ne commence pas tout en haut" in resultat
 
 

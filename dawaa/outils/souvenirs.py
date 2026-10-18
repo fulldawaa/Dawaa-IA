@@ -98,7 +98,7 @@ def decrire_action(action: dict) -> str:
 
         verbe = "Lire" if LECTURE.search(action["demande"]) and not OUVERTURE.search(action["demande"]) else "Ouvrir"
         return f"{verbe} {Path(a.get('nom') or '').name or a.get('dossier', '')}".strip()
-    if outil in ("lire_document", "lire_tableau_excel"):
+    if outil in ("lire_document", "lire_tableau_excel", "tableau"):
         return f"Lire {Path(a.get('chemin', '')).name}"
     if outil == "recherche_web":
         return f"Chercher sur internet « {a.get('requete', '')} »"

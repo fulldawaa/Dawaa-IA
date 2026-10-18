@@ -48,7 +48,7 @@ def test_lire_un_tableau_excel_du_bureau(bureau):
 def test_mauvais_outil_redirige_vers_le_bon(bureau):
     Workbook().save(bureau / "budget.xlsx")
     resultat = outils.executer("lire_document", {"chemin": "budget"})
-    assert "tableau Excel" in resultat and "lire_tableau_excel" in resultat
+    assert "tableau Excel" in resultat and "outil tableau, action=lire" in resultat
 
 
 def test_nom_ambigu_liste_les_possibilites(bureau):

@@ -51,7 +51,7 @@ def ouvrir_fichier(nom: str = "", dossier: str = "") -> str:
     if lire:
         return "Fichier ouvert à l'écran. " + decrire_fichier(chemin) + "\n\n" + lire(str(chemin))
     return ("Fichier ouvert à l'écran avec son programme habituel. Tu n'as PAS lu son contenu : n'en dis rien. "
-            "Si l'utilisateur veut savoir ce qu'il contient, appelle lire_document ou lire_tableau_excel. "
+            "Si l'utilisateur veut savoir ce qu'il contient, appelle lire_document ou tableau (action=lire). "
             + decrire_fichier(chemin))
 
 
@@ -100,7 +100,7 @@ SCHEMAS = [
             "(ex. « ouvre le fichier factures sur mon bureau » → nom=factures, dossier=Bureau ; "
             "« ouvre mes téléchargements » → dossier=Téléchargements). Il suffit d'une partie du nom. "
             "Ne lit PAS le contenu : si l'utilisateur dit « lis », « lis-moi », « que dit », « résume », "
-            "utilise lire_document (ou lire_tableau_excel pour Excel) à la place."),
+            "utilise lire_document (ou tableau avec action=lire pour Excel) à la place."),
         "parameters": {
             "type": "object",
             "properties": {

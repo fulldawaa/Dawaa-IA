@@ -44,6 +44,8 @@ class Memoire:
                 id INTEGER PRIMARY KEY AUTOINCREMENT, nom TEXT NOT NULL, url TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS raccourcis (
                 id INTEGER PRIMARY KEY AUTOINCREMENT, nom TEXT NOT NULL, actions TEXT NOT NULL, cree REAL NOT NULL);
+            CREATE TABLE IF NOT EXISTS contacts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT, nom TEXT NOT NULL, email TEXT NOT NULL);
         """)
         self._db.commit()
 
@@ -171,6 +173,47 @@ class Memoire:
         with self._verrou:
             self._db.execute("DELETE FROM raccourcis WHERE id = ?", (id_,))
             self._db.commit()
+
+    # ---------- carnet de contacts ----------
+
+    def contacts(self) -> list[dict]:
+        with self._verrou:
+            lignes = self._db.execute("SELECT id, nom, email FROM contacts ORDER BY nom COLLATE NOCASE").fetchall()
+        return [{"id": i, "nom": n, "email": e} for i, n, e in lignes]
+
+    def ajouter_contact(self, nom: str, email: str) -> tuple[int, bool]:
+        """Ajoute un contact ; un contact du même nom est mis à jour. Renvoie (id, remplacé)."""
+        nom, email = nom.strip(), email.strip().lower()
+        if not nom:
+            raise ValueError("Donnez le nom de la personne.")
+        if not ADRESSE_EMAIL.fullmatch(email):
+            raise ValueError("Cette adresse e-mail ne semble pas correcte (exemple : nicole.martin@gmail.com).")
+        existant = next((c for c in self.contacts() if normaliser(c["nom"]) == normaliser(nom)), None)
+        with self._verrou:
+            if existant:
+                self._db.execute("UPDATE contacts SET nom = ?, email = ? WHERE id = ?", (nom, email, existant["id"]))
+                self._db.commit()
+                return existant["id"], True
+            cur = self._db.execute("INSERT INTO contacts (nom, email) VALUES (?, ?)", (nom, email))
+            self._db.commit()
+            return cur.lastrowid, False
+
+    def trouver_contacts(self, nom: str) -> list[dict]:
+        """« Nicole » trouve « Nicole Martin » ; « ma fille » ne trouve rien (pas de devinette)."""
+        cle = normaliser(re.sub(r"^\s*(a|à)\s+", "", nom))
+        tous = self.contacts()
+        if exacts := [c for c in tous if normaliser(c["nom"]) == cle]:
+            return exacts
+        mots = set(cle.split())
+        return [c for c in tous if mots and mots <= set(normaliser(c["nom"]).split())]
+
+    def supprimer_contact(self, id_: int) -> None:
+        with self._verrou:
+            self._db.execute("DELETE FROM contacts WHERE id = ?", (id_,))
+            self._db.commit()
+
+
+ADRESSE_EMAIL = re.compile(r"[a-z0-9._%+-]+@[a-z0-9-]+(\.[a-z0-9-]+)*\.[a-z]{2,}", re.I)
 
 
 def cle_raccourci(nom: str) -> str:

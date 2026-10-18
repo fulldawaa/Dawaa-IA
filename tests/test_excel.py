@@ -72,8 +72,8 @@ def test_modification_successive_ne_ecrase_pas():
 
 
 def test_colonne_inconnue_renvoie_un_message_clair():
-    resultat = outils.executer("modifier_tableau_excel", {
-        "chemin": str(_creer()), "actions": [{"type": "trier", "colonne": "Prix"}]})
+    resultat = outils.executer("tableau", {
+        "action": "modifier", "chemin": str(_creer()), "modifications": [{"type": "trier", "colonne": "Prix"}]})
     assert resultat.startswith("Erreur : Il n'y a pas de colonne « Prix »")
     assert "Montant" in resultat
 
@@ -84,4 +84,76 @@ def test_graphique():
 
 
 def test_fichier_absent():
-    assert "Je ne trouve pas" in outils.executer("lire_tableau_excel", {"chemin": "inexistant.xlsx"})
+    assert "Je ne trouve pas" in outils.executer("tableau", {"action": "lire", "chemin": "inexistant.xlsx"})
+
+
+# ---------- un seul outil pour les tableaux ----------
+
+def test_outil_tableau_et_ses_actions():
+    cree = outils.executer("tableau", {"action": "creer", "nom": "Courses", "colonnes": ["Article", "Prix"],
+                                       "lignes": [["Pain", 1.2], ["Lait", 0.95]], "ligne_total": True})
+    chemin = str(_chemin(cree))
+    assert "Prix : total = 2.15" in outils.executer("tableau", {"action": "lire", "chemin": "Courses"})
+    modifie = outils.executer("tableau", {"action": "modifier", "chemin": chemin,
+                                          "modifications": [{"type": "ajouter_ligne", "valeurs": ["Oeufs", 2.5]}]})
+    assert "Modifications faites" in modifie
+    graphique = outils.executer("tableau", {"action": "graphique", "chemin": chemin, "graphique": "camembert",
+                                            "colonne_x": "Article", "colonnes_y": ["Prix"]})
+    assert len(load_workbook(_chemin(graphique)).active._charts) == 1
+    assert "Action inconnue" in outils.executer("tableau", {"action": "supprimer"})
+
+
+def test_action_oubliee_devinee():
+    """Le petit modèle oublie parfois action : on la devine d'après les paramètres."""
+    chemin = str(_chemin(outils.executer("tableau", {"nom": "Notes", "colonnes": ["Élève", "Note"],
+                                                     "lignes": [["Léa", 15]]})))
+    assert "Feuilles :" in outils.executer("tableau", {"chemin": chemin})
+    assert "Graphique ajouté" in outils.executer("tableau", {"chemin": chemin, "colonne_x": "Élève", "colonnes_y": ["Note"]})
+
+
+def test_anciens_noms_d_outils_acceptes():
+    """Les raccourcis enregistrés avant la fusion appellent encore lire_tableau_excel."""
+    chemin = str(_creer())
+    assert "Feuilles :" in outils.executer("lire_tableau_excel", {"chemin": chemin})
+    assert "Modifications faites" in outils.executer("modifier_tableau_excel", {
+        "chemin": chemin, "actions": [{"type": "mettre_en_forme"}]})
+    assert "Graphique ajouté" in outils.executer("ajouter_graphique_excel", {
+        "chemin": chemin, "type": "barres", "colonne_x": "Poste", "colonnes_y": ["Montant"]})
+
+
+def test_lecture_de_tableau_rejouable_dans_un_raccourci():
+    chemin = str(_creer())
+    outils.executer("tableau", {"action": "creer", "nom": "Autre", "colonnes": ["A"], "lignes": []})
+    outils.executer("tableau", {"action": "lire", "chemin": chemin})
+    assert [(a["outil"], a["arguments"]["action"]) for a in outils.journal] == [("tableau", "lire")]
+
+
+def test_message_d_attente_selon_l_action():
+    assert outils.message_attente("tableau", '{"action": "graphique", "chemin": "x"}') == "J'ajoute le graphique…"
+    assert outils.message_attente("tableau", '{"action":"lire"}') == "Je lis le tableau…"
+    assert outils.message_attente("lire_tableau_excel", "{}") == "Je travaille sur le tableau…"
+    assert outils.message_attente("memoire", '{"action": "lancer_raccourci"}') == "Je lance le raccourci…"
+
+
+def test_modifications_mal_formees_comprises():
+    """Le petit modèle écrit {"ajouter_ligne": {...}} ou « tri » au lieu de la forme attendue."""
+    resultat = outils.executer("tableau", {"action": "modifier", "chemin": str(_creer()), "modifications": [
+        {"ajouter_ligne": {"valeurs": ["Électricité", 95]}}, {"type": "tri", "colonne": "Montant", "ordre": "decroissant"}]})
+    assert "ligne ajoutée" in resultat and "trié par « Montant »" in resultat
+    lignes = list(load_workbook(_chemin(resultat)).active.iter_rows(min_row=2, max_row=5, max_col=1, values_only=True))
+    assert [l[0] for l in lignes] == ["Loyer", "Courses", "Électricité", "Essence"]
+    erreur = outils.executer("tableau", {"action": "modifier", "chemin": str(_creer()), "modifications": [{"colorier": {}}]})
+    assert "Modification inconnue" in erreur and '"type": "ajouter_ligne"' in erreur
+
+
+def test_colonne_calculee_avec_un_nombre():
+    """« Ajoute une colonne Par mois qui divise le montant par 12 »."""
+    for modification in ({"operation": "diviser", "colonnes": ["Montant"], "nombre": 12},
+                         {"operation": "diviser", "colonnes": ["Montant", "12"]}):
+        resultat = outils.executer("tableau", {"action": "modifier", "chemin": str(_creer()), "modifications": [
+            {"type": "ajouter_colonne", "nom": "Par mois", **modification}]})
+        ws = load_workbook(_chemin(resultat)).active
+        assert ws["D1"].value == "Par mois" and ws["D2"].value == "=B2/12"
+    erreur = outils.executer("tableau", {"action": "modifier", "chemin": str(_creer()), "modifications": [
+        {"type": "ajouter_colonne", "nom": "Par mois", "operation": "diviser", "colonnes": ["Montant"]}]})
+    assert '"nombre": 12' in erreur

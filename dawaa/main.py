@@ -7,7 +7,7 @@ import threading
 
 import webview
 
-from dawaa import config
+from dawaa import config, demarrage
 
 log = logging.getLogger("dawaa")
 
@@ -68,9 +68,11 @@ def main() -> None:
         width=1100, height=780, min_size=(720, 560),
         background_color="#F7F6F3",
         text_select=True,
+        hidden=demarrage.lance_au_demarrage(),  # lancé avec Windows : discret, près de l'horloge
     )
     app.fenetre = fenetre
     icone = icone_notification(app, fenetre)
+    app.notifier_windows = icone.notify
     premiere_fermeture = {"faite": False}
 
     def fermeture():

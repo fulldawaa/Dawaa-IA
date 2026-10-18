@@ -202,9 +202,25 @@
   });
   texte.addEventListener("input", ajusterHauteur);
 
-  document.querySelectorAll(".suggestion").forEach((b) => {
-    b.onclick = () => { texte.value = b.dataset.texte; texte.focus(); ajusterHauteur(); };
+  $("#suggestions").addEventListener("click", (e) => {
+    const b = e.target.closest(".suggestion");
+    if (b) { texte.value = b.dataset.texte; texte.focus(); ajusterHauteur(); }
   });
+
+  function afficherSuggestions(liste) {
+    if (!liste || !liste.length) return;
+    $("#suggestions").innerHTML = "";
+    liste.forEach((s) => {
+      const b = document.createElement("button");
+      b.className = "suggestion";
+      b.dataset.texte = s.texte;
+      b.innerHTML = '<span class="emoji"></span><strong></strong><span></span>';
+      b.querySelector(".emoji").textContent = s.emoji;
+      b.querySelector("strong").textContent = s.titre;
+      b.querySelector("span:last-child").textContent = s.sousTitre;
+      $("#suggestions").appendChild(b);
+    });
+  }
 
   // Bouton micro : maintenir pour parler (comme la touche du clavier)
   let microEnfonce = false;
@@ -299,6 +315,21 @@
       raccourcis.appendChild(li);
     });
 
+    const contacts = $("#liste-contacts");
+    contacts.innerHTML = "";
+    if (!(donnees.contacts || []).length) contacts.innerHTML = '<li class="vide">Aucun contact.</li>';
+    (donnees.contacts || []).forEach((c) => {
+      const li = document.createElement("li");
+      li.innerHTML = '<span class="texte"><strong></strong><br><span class="url"></span></span>' +
+        '<button title="Supprimer">' + ICONES.croix + "</button>";
+      li.querySelector("strong").textContent = c.nom;
+      li.querySelector(".url").textContent = c.email;
+      li.querySelector("button").onclick = async () => afficherMemoire(await api().supprimer_contact(c.id));
+      contacts.appendChild(li);
+    });
+    $("#erreur-contact").hidden = !donnees.erreurContact;
+    $("#erreur-contact").textContent = donnees.erreurContact || "";
+
     $("#erreur-favori").hidden = !donnees.erreur;
     $("#erreur-favori").textContent = donnees.erreur || "";
   }
@@ -314,12 +345,154 @@
       afficherMemoire(await api().tout_oublier());
     }
   };
+  $("#form-contact").onsubmit = async (e) => {
+    e.preventDefault();
+    const donnees = await api().ajouter_contact($("#contact-nom").value, $("#contact-email").value);
+    afficherMemoire(donnees);
+    if (!donnees.erreurContact) { $("#contact-nom").value = ""; $("#contact-email").value = ""; }
+  };
   $("#form-favori").onsubmit = async (e) => {
     e.preventDefault();
     const donnees = await api().ajouter_favori($("#favori-nom").value, $("#favori-url").value);
     afficherMemoire(donnees);
     if (!donnees.erreur) { $("#favori-nom").value = ""; $("#favori-url").value = ""; }
   };
+
+  // ---------- accueil : faire connaissance, puis ce que je sais faire ----------
+
+  let etapeAccueil = 1;
+  let apercuSeul = false;  // bouton « Ce que je sais faire » : seulement la dernière étape
+  let accueilFait = true;
+  let installationEnCours = false;
+
+  function usagesCoches() {
+    return [...document.querySelectorAll("#accueil-usages input:checked")].map((c) => c.value);
+  }
+
+  async function afficherFonctions() {
+    const liste = $("#accueil-fonctions");
+    liste.innerHTML = "";
+    (await api().apercu(usagesCoches())).forEach((f) => {
+      const carte = document.createElement("div");
+      carte.className = "fonction" + (f.choisie ? " choisie" : "");
+      carte.innerHTML = '<div class="entete"><span class="emoji"></span><strong></strong></div><p></p><div class="exemples"></div>';
+      carte.querySelector(".emoji").textContent = f.emoji;
+      carte.querySelector("strong").textContent = f.titre;
+      carte.querySelector("p").textContent = f.description;
+      f.exemples.forEach((ex) => {
+        const b = document.createElement("button");
+        b.className = "exemple";
+        b.textContent = "« " + ex + " »";
+        b.disabled = !apercuSeul;  // pendant le premier accueil, on ne quitte pas l'écran par erreur
+        b.onclick = () => {
+          $("#ecran-accueil").hidden = true;
+          texte.value = ex.replace(/…$/, "");
+          texte.focus();
+          ajusterHauteur();
+        };
+        carte.querySelector(".exemples").appendChild(b);
+      });
+      liste.appendChild(carte);
+    });
+  }
+
+  async function afficherEtapeAccueil(n) {
+    etapeAccueil = n;
+    document.querySelectorAll("#ecran-accueil .etape").forEach((s) => { s.hidden = +s.dataset.etape !== n; });
+    if (n === 4) await afficherFonctions();
+    $("#accueil-passer").hidden = n === 4;
+    $("#accueil-etape").textContent = apercuSeul ? "" : `Étape ${n} sur 4`;
+    $("#accueil-suivant").textContent = n < 4 ? "Suivant" : apercuSeul ? "Fermer" : "C'est parti !";
+    const champ = { 1: "#accueil-prenom", 2: "#accueil-email" }[n];
+    if (champ) $(champ).focus();
+  }
+
+  async function ouvrirAccueil(etape) {
+    if (!api()) return;
+    const d = await api().accueil();
+    apercuSeul = etape === 4;
+    $("#accueil-prenom").value = d.prenom;
+    $("#accueil-email").value = d.email;
+    $("#accueil-erreur").hidden = true;
+    const grille = $("#accueil-usages");
+    grille.innerHTML = "";
+    d.usages.forEach((u) => {
+      const l = document.createElement("label");
+      l.className = "usage";
+      l.innerHTML = '<input type="checkbox"><span class="emoji"></span><span></span>';
+      l.querySelector("input").value = u.id;
+      l.querySelector("input").checked = d.usagesChoisis.includes(u.id);
+      l.querySelector(".emoji").textContent = u.emoji;
+      l.querySelector("span:last-child").textContent = u.titre;
+      grille.appendChild(l);
+    });
+    $("#accueil-telechargement").hidden = !installationEnCours;
+    $("#ecran-accueil").hidden = false;
+    await afficherEtapeAccueil(etape);
+  }
+
+  async function terminerAccueil() {
+    const r = await api().enregistrer_accueil($("#accueil-prenom").value, $("#accueil-email").value, usagesCoches());
+    if (r.erreur) {
+      $("#accueil-erreur").textContent = r.erreur;
+      $("#accueil-erreur").hidden = false;
+      return afficherEtapeAccueil(2);
+    }
+    accueilFait = true;
+    $("#ecran-accueil").hidden = true;
+  }
+
+  $("#accueil-suivant").onclick = () => {
+    if (etapeAccueil < 4) return afficherEtapeAccueil(etapeAccueil + 1);
+    if (apercuSeul) { $("#ecran-accueil").hidden = true; return; }
+    terminerAccueil();
+  };
+  $("#accueil-passer").onclick = () => {
+    if (etapeAccueil === 1) $("#accueil-prenom").value = "";
+    if (etapeAccueil === 2) { $("#accueil-email").value = ""; $("#accueil-erreur").hidden = true; }
+    afficherEtapeAccueil(etapeAccueil + 1);
+  };
+  ["#accueil-prenom", "#accueil-email"].forEach((id) => $(id).addEventListener("keydown", (e) => {
+    if (e.key === "Enter") $("#accueil-suivant").click();
+  }));
+  $("#btn-aide").onclick = () => ouvrirAccueil(4);
+  $("#btn-refaire-accueil").onclick = () => { $("#ecran-reglages").hidden = true; ouvrirAccueil(1); };
+
+  // ---------- mon agenda ----------
+
+  function afficherAgenda(rendezVous) {
+    const liste = $("#liste-agenda");
+    liste.innerHTML = "";
+    if (!(rendezVous || []).length) liste.innerHTML = '<li class="vide">Rien de prévu pour l\'instant.</li>';
+    (rendezVous || []).forEach((r) => {
+      const li = document.createElement("li");
+      li.innerHTML = '<span class="texte"><strong></strong><br><span class="url"></span></span>' +
+        '<button title="Supprimer">' + ICONES.croix + "</button>";
+      li.querySelector("strong").textContent = r.titre;
+      li.querySelector(".url").textContent = [r.quand, r.repetition, r.avance && "rappel " + r.avance].filter(Boolean).join("  ·  ");
+      li.querySelector("button").onclick = async () => afficherAgenda(await api().supprimer_rendez_vous(r.id));
+      liste.appendChild(li);
+    });
+  }
+
+  $("#btn-agenda").onclick = async () => {
+    if (!api()) return;
+    afficherAgenda(await api().agenda());
+    $("#ecran-agenda").hidden = false;
+  };
+  $("#btn-fermer-agenda").onclick = () => { $("#ecran-agenda").hidden = true; };
+
+  function afficherRappel(texte) {
+    const n = document.createElement("div");
+    n.className = "notification rappel";
+    n.innerHTML = '<span class="texte"></span><button class="btn-secondaire">J\'ai compris</button>';
+    n.querySelector(".texte").textContent = "⏰ " + texte;
+    n.querySelector("button").onclick = () => {
+      api() && api().arreter_alarme();
+      n.remove();
+    };
+    $("#notifications").appendChild(n);
+  }
 
   // ---------- réglages ----------
 
@@ -336,6 +509,13 @@
     document.documentElement.style.setProperty("--taille", e.target.value + "px");
   };
   $("#reglage-taille").onchange = (e) => api() && api().reglages({ tailleTexte: +e.target.value });
+  $("#reglage-demarrage").onchange = (e) => api() && api().reglages({ demarrerWindows: e.target.checked });
+  $("#reglage-messagerie").onchange = (e) => api() && api().reglages({ messagerie: e.target.value });
+  $("#reglage-son").onchange = (e) => {
+    $("#btn-tester-son").disabled = !e.target.value;
+    api() && api().reglages({ sonAlarme: e.target.value });
+  };
+  $("#btn-tester-son").onclick = () => api() && api().essayer_alarme($("#reglage-son").value);
 
   // ---------- premier lancement ----------
 
@@ -344,6 +524,8 @@
     $("#erreur-installation").hidden = true;
     $("#progression").hidden = false;
     api() && api().lancer_telechargement();
+    installationEnCours = true;
+    if (!accueilFait) ouvrirAccueil(1);  // on fait connaissance pendant le téléchargement
   };
 
   // ---------- fonctions appelées par Python ----------
@@ -372,6 +554,12 @@
     },
 
     notification: notifier,
+
+    rappel: afficherRappel,
+
+    async agendaModifie() {
+      if (!$("#ecran-agenda").hidden && api()) afficherAgenda(await api().agenda());
+    },
 
     messageUtilisateur(contenu) { afficherUtilisateur(contenu); },
 
@@ -467,6 +655,30 @@
         select.appendChild(o);
       });
       $("#reglage-taille").value = r.tailleTexte;
+      $("#reglage-demarrage").checked = r.demarrerWindows;
+      accueilFait = r.accueilFait;
+      afficherSuggestions(r.suggestions);
+      $("#titre-accueil").textContent = r.prenom
+        ? `Bonjour ${r.prenom} ! Comment puis-je vous aider ?` : "Bonjour ! Comment puis-je vous aider ?";
+      const messageries = $("#reglage-messagerie");
+      messageries.innerHTML = "";
+      Object.entries(r.messageries || {}).forEach(([id, nom]) => {
+        const o = document.createElement("option");
+        o.value = id;
+        o.textContent = nom;
+        o.selected = id === r.messagerie;
+        messageries.appendChild(o);
+      });
+      const sons = $("#reglage-son");
+      sons.innerHTML = "";
+      Object.entries({ ...r.sonsAlarme, "": "Pas de sonnerie" }).forEach(([id, nom]) => {
+        const o = document.createElement("option");
+        o.value = id;
+        o.textContent = nom;
+        o.selected = id === r.sonAlarme;
+        sons.appendChild(o);
+      });
+      $("#btn-tester-son").disabled = !r.sonAlarme;
       document.documentElement.style.setProperty("--taille", r.tailleTexte + "px");
     },
 
@@ -479,6 +691,7 @@
       const pct = Math.floor(fraction * 100);
       $("#progression-remplie").style.width = pct + "%";
       $("#progression-texte").textContent = `${message} ${pct} %`;
+      $("#accueil-telechargement").textContent = `En attendant, je me prépare : ${pct} %`;
     },
 
     erreurTelechargement(message) {
@@ -488,7 +701,11 @@
       $("#btn-installer").hidden = false;
     },
 
+    ouvrirAccueil,
+
     finPremierLancement() {
+      installationEnCours = false;
+      $("#accueil-telechargement").textContent = "Je suis prêt ! Terminez la présentation quand vous voulez.";
       $("#ecran-installation").hidden = true;
       notifier("Installation terminée ! Je démarre…");
     },

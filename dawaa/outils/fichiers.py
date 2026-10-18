@@ -55,11 +55,11 @@ TYPES_LISIBLES = {
     ".pdf": "un PDF (outil lire_document)",
     ".txt": "un fichier texte (outil lire_document)",
     ".md": "un fichier texte (outil lire_document)",
-    ".xlsx": "un tableau Excel (outil lire_tableau_excel)",
-    ".xlsm": "un tableau Excel (outil lire_tableau_excel)",
-    ".xls": "un tableau Excel (outil lire_tableau_excel)",
-    ".ods": "un tableau LibreOffice Calc (outil lire_tableau_excel)",
-    ".csv": "un tableau CSV (outil lire_tableau_excel)",
+    ".xlsx": "un tableau Excel (outil tableau, action=lire)",
+    ".xlsm": "un tableau Excel (outil tableau, action=lire)",
+    ".xls": "un tableau Excel (outil tableau, action=lire)",
+    ".ods": "un tableau LibreOffice Calc (outil tableau, action=lire)",
+    ".csv": "un tableau CSV (outil tableau, action=lire)",
 }
 
 

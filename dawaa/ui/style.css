@@ -209,6 +209,8 @@ textarea {
 .ligne-reglage select { flex: 1; font: inherit; padding: 8px; border-radius: 10px; border: 1px solid var(--bord); background: var(--surface); color: inherit; }
 .ligne-reglage input[type=range] { flex: 1; accent-color: var(--accent); }
 .reglages .btn-principal { display: block; margin-left: auto; }
+.reglages label.case { display: flex; align-items: center; gap: 10px; font-weight: normal; margin: 0; cursor: pointer; }
+.reglages label.case input { width: 18px; height: 18px; accent-color: var(--accent); }
 
 #depot {
   position: fixed; inset: 12px; border: 3px dashed var(--accent); border-radius: 20px; z-index: 20;
@@ -221,12 +223,50 @@ textarea {
   background: var(--texte); color: var(--fond); padding: 10px 18px; border-radius: 12px; box-shadow: var(--ombre);
   animation: apparition .2s ease-out; max-width: 520px;
 }
+.notification.rappel {
+  display: flex; align-items: center; gap: 14px; background: var(--accent); color: #fff; font-size: 1.1em; font-weight: 600;
+}
+.notification.rappel button { color: var(--texte); white-space: nowrap; }
 @keyframes apparition { from { opacity: 0; transform: translateY(-8px); } }
 
 @media (max-width: 860px) {
   #barre { display: none; }
   .suggestions { grid-template-columns: 1fr; }
 }
+
+/* ---------- Accueil : faire connaissance, ce que je sais faire ---------- */
+#ecran-accueil { z-index: 12; }
+.carte.accueil { width: min(680px, 100%); text-align: left; max-height: calc(100vh - 32px); display: flex; flex-direction: column; }
+.carte.accueil .etape { overflow-y: auto; }
+.carte.accueil h2 { margin-top: 4px; }
+.carte.accueil label:not(.usage) { display: block; font-weight: 600; margin: 18px 0 6px; }
+.carte.accueil input[type=email], .carte.accueil input:not([type]) {
+  width: 100%; font: inherit; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--bord);
+  background: var(--surface); color: inherit;
+}
+.grille-usages { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+.usage {
+  display: flex; align-items: center; gap: 10px; padding: 12px; border-radius: 12px; border: 1px solid var(--bord);
+  background: var(--barre); cursor: pointer;
+}
+.usage:has(input:checked) { border-color: var(--accent); background: var(--accent-clair); }
+.usage input { width: 18px; height: 18px; accent-color: var(--accent); }
+.usage .emoji { font-size: 1.3em; }
+.liste-fonctions { display: flex; flex-direction: column; gap: 10px; }
+.fonction { padding: 12px 14px; border-radius: 12px; background: var(--barre); border: 1px solid transparent; }
+.fonction.choisie { border-color: var(--accent); }
+.fonction .entete { display: flex; align-items: center; gap: 10px; font-size: 1.05em; }
+.fonction .emoji { font-size: 1.4em; }
+.fonction p { margin: 6px 0 8px; color: var(--texte-doux); }
+.fonction .exemples { display: flex; flex-wrap: wrap; gap: 6px; }
+.exemple { padding: 4px 10px; border-radius: 999px; background: var(--surface); border: 1px solid var(--bord); font-size: .92em; }
+.exemple:not(:disabled):hover { border-color: var(--accent); }
+.exemple:disabled { color: inherit; cursor: default; }
+.boutons-accueil { display: flex; align-items: center; gap: 10px; margin-top: 18px; }
+.boutons-accueil #accueil-etape { margin-right: auto; }
+.boutons-accueil .btn-principal { margin-top: 0; }
+#accueil-telechargement { margin: 14px 0 0; }
+@media (max-width: 600px) { .grille-usages { grid-template-columns: 1fr; } }
 
 /* ---------- Mémoire et sites ---------- */
 .carte.memoire { text-align: left; max-height: calc(100vh - 32px); overflow-y: auto; }
