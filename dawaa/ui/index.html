@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dawaa</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <aside id="barre">
+    <div class="marque">
+      <img src="dawaa.png" alt="" width="32" height="32">
+      <span>Dawaa</span>
+    </div>
+    <button id="btn-nouvelle" class="btn-nouvelle">
+      <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+      Nouvelle conversation
+    </button>
+    <div class="titre-liste">Conversations</div>
+    <nav id="liste-conversations"></nav>
+    <div class="bas-barre">
+      <button id="btn-memoire" class="lien-barre">
+        <svg viewBox="0 0 24 24"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+        Ma mémoire
+      </button>
+      <button id="btn-fichiers" class="lien-barre">
+        <svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+        Mes fichiers
+      </button>
+      <button id="btn-reglages" class="lien-barre">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+        Réglages
+      </button>
+    </div>
+  </aside>
+
+  <main>
+    <section id="fil" aria-live="polite">
+      <div id="accueil">
+        <img src="dawaa.png" alt="" width="64" height="64">
+        <h1>Bonjour ! Comment puis-je vous aider ?</h1>
+        <p class="indice">Écrivez votre question en bas, ou maintenez <kbd class="nom-touche">Ctrl droit</kbd> pour me parler.</p>
+        <div class="suggestions">
+          <button class="suggestion" data-texte="Aide-moi à écrire une lettre pour ">
+            <span class="emoji">✉️</span><strong>Écrire une lettre</strong><span>Je vous aide à rédiger</span>
+          </button>
+          <button class="suggestion" data-texte="Fais-moi un tableau Excel pour ">
+            <span class="emoji">📊</span><strong>Faire un tableau Excel</strong><span>Dépenses, listes, suivis…</span>
+          </button>
+          <button class="suggestion" data-texte="Cherche sur internet : ">
+            <span class="emoji">🔎</span><strong>Chercher sur internet</strong><span>Météo, horaires, infos…</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <footer id="saisie">
+      <div id="etat" class="etat demarrage"><span class="point"></span><span id="etat-texte">Je me prépare…</span></div>
+      <div id="joints"></div>
+      <div class="zone">
+        <button id="btn-joindre" class="btn-icone" title="Joindre un fichier (Word, LibreOffice, PDF, Excel)">
+          <svg viewBox="0 0 24 24"><path d="M21 11.5l-8.6 8.6a5.5 5.5 0 0 1-7.8-7.8l8.6-8.6a3.7 3.7 0 0 1 5.2 5.2l-8.6 8.6a1.8 1.8 0 0 1-2.6-2.6l7.9-7.9"/></svg>
+        </button>
+        <textarea id="texte" rows="1" placeholder="Écrivez votre message…"></textarea>
+        <button id="btn-micro" class="btn-micro" title="Maintenez pour parler">
+          <svg viewBox="0 0 24 24"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v4"/></svg>
+        </button>
+        <button id="btn-envoyer" class="btn-envoyer">Envoyer</button>
+      </div>
+    </footer>
+  </main>
+
+  <!-- Premier lancement -->
+  <div id="ecran-installation" class="voile" hidden>
+    <div class="carte">
+      <img src="dawaa.png" alt="" width="64" height="64">
+      <h2>Bienvenue dans Dawaa !</h2>
+      <p>Avant de commencer, je dois télécharger mon « cerveau » et ma reconnaissance de la voix
+        (<strong id="taille-installation">3 Go</strong>). C'est à faire une seule fois.</p>
+      <p class="petit">Selon votre connexion, cela prend de 5 à 30 minutes. Vous pourrez ensuite m'utiliser même sans internet.</p>
+      <div id="progression" hidden>
+        <div class="barre-progression"><div id="progression-remplie"></div></div>
+        <p id="progression-texte" class="petit">0 %</p>
+      </div>
+      <p id="erreur-installation" class="erreur" hidden></p>
+      <button id="btn-installer" class="btn-principal">Commencer</button>
+    </div>
+  </div>
+
+  <!-- Réglages -->
+  <div id="ecran-reglages" class="voile" hidden>
+    <div class="carte reglages">
+      <h2>Réglages</h2>
+      <label>Touche pour parler</label>
+      <div class="ligne-reglage">
+        <kbd id="reglage-touche" class="nom-touche">Ctrl droit</kbd>
+        <button id="btn-changer-touche" class="btn-secondaire">Changer</button>
+      </div>
+      <p id="aide-touche" class="petit" hidden>Appuyez maintenant sur la touche que vous voulez utiliser (par exemple F9 ou Ctrl droit).</p>
+      <label for="reglage-voix">Voix de Dawaa</label>
+      <div class="ligne-reglage">
+        <select id="reglage-voix"></select>
+        <button id="btn-tester-voix" class="btn-secondaire">Écouter</button>
+      </div>
+      <label for="reglage-taille">Taille du texte</label>
+      <div class="ligne-reglage">
+        <span class="petit">A</span>
+        <input id="reglage-taille" type="range" min="12" max="28" step="1">
+        <span style="font-size:1.4em">A</span>
+      </div>
+      <button id="btn-fermer-reglages" class="btn-principal">Fermer</button>
+    </div>
+  </div>
+
+  <!-- Ma mémoire -->
+  <div id="ecran-memoire" class="voile" hidden>
+    <div class="carte memoire">
+      <h2>Ma mémoire</h2>
+      <p class="petit">Tout est enregistré uniquement sur cet ordinateur.</p>
+
+      <h3>Ce que Dawaa sait de vous</h3>
+      <ul id="liste-souvenirs" class="liste-memoire"></ul>
+      <button id="btn-tout-oublier" class="lien-danger">Tout effacer</button>
+
+      <h3>Mes sites favoris</h3>
+      <p class="petit">Dites ensuite par exemple « ouvre ma banque ».</p>
+      <ul id="liste-favoris" class="liste-memoire"></ul>
+      <form id="form-favori" class="form-favori">
+        <input id="favori-nom" placeholder="Nom (ex. : Ma banque)" autocomplete="off">
+        <input id="favori-url" placeholder="Adresse (ex. : www.credit-agricole.fr)" autocomplete="off">
+        <button type="submit" class="btn-secondaire">Ajouter</button>
+      </form>
+      <p id="erreur-favori" class="erreur petit" hidden></p>
+
+      <h3>Mes raccourcis</h3>
+      <p class="petit">Faites une ou plusieurs actions, puis dites « retiens ça sous le nom ma routine du matin ».
+        Ensuite, dites « fais ma routine du matin » pour tout refaire.</p>
+      <ul id="liste-raccourcis" class="liste-memoire"></ul>
+
+      <button id="btn-fermer-memoire" class="btn-principal">Fermer</button>
+    </div>
+  </div>
+
+  <div id="depot" hidden><div>Déposez votre fichier ici</div></div>
+  <div id="notifications"></div>
+
+  <script src="markdown.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
