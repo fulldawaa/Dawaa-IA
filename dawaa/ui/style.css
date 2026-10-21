@@ -103,6 +103,7 @@ main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
 }
 .message.assistant { flex-direction: column; }
 .message.assistant .contenu { overflow-wrap: anywhere; }
+.message.avis .contenu { background: var(--accent-clair); border-radius: 12px; padding: 10px 14px; }
 .contenu p { margin: 0 0 .7em; }
 .contenu p:last-child { margin-bottom: 0; }
 .contenu h1, .contenu h2, .contenu h3 { font-size: 1.1em; margin: 1em 0 .4em; }

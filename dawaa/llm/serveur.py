@@ -13,8 +13,10 @@ from dawaa.config import chemin_llama_server
 
 log = logging.getLogger(__name__)
 
-TAILLE_CONTEXTE = 8192
-# Une capture d'écran coûte au plus ce nombre de tokens (sur les 8192 du contexte)
+# Les consignes et les outils occupent déjà ~5 000 tokens : avec 8 192, il ne restait de la place que pour
+# deux longues réponses. 16 384 coûte ~250 Mo de mémoire vive de plus (mesuré avec le modèle 4B).
+TAILLE_CONTEXTE = 16384
+# Une capture d'écran coûte au plus ce nombre de tokens (sur les 16 384 du contexte)
 MAX_TOKENS_IMAGE = 1024
 
 

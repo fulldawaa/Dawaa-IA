@@ -553,6 +553,20 @@
 
     messageUtilisateur(contenu) { afficherUtilisateur(contenu); },
 
+    // Conversation trop longue : le programme en a ouvert une nouvelle (dernier échange repris, puis la demande)
+    conversationRecommencee(messages, avis) {
+      conversationActive = null;
+      viderFil();
+      messages.slice(0, -1).forEach((m) => (m.role === "user" ? afficherUtilisateur(m.content) : afficherAssistant(m.content)));
+      const div = document.createElement("div");
+      div.className = "message avis";
+      div.innerHTML = '<div class="contenu"></div>';
+      div.firstChild.textContent = "💡 " + avis;
+      fil.appendChild(div);
+      afficherUtilisateur(messages[messages.length - 1].content);
+      document.querySelectorAll(".conversation").forEach((c) => c.classList.remove("active"));
+    },
+
     debutReponse() {
       enCours = true;
       reponse = creerReponse();

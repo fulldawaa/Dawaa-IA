@@ -13,10 +13,17 @@ from dawaa.outils import agenda as outil_agenda
 log = logging.getLogger(__name__)
 
 MAX_TOURS_OUTILS = 6
-# ~8k tokens de contexte, dont ~3k pour le prompt, les outils et la mémoire :
-# on garde environ 14 000 caractères d'historique
-MAX_CARACTERES_HISTORIQUE = 14_000
+# 16 384 tokens de contexte (serveur.TAILLE_CONTEXTE), mesurés avec le modèle 4B : ~5 000 pour les consignes et les
+# outils, ~1 000 pour la mémoire et les résumés, jusqu'à 1 024 pour une capture d'écran et ~2 300 pour une longue
+# réponse. Il en reste ~7 000 pour l'historique, soit ~24 000 caractères (le français fait ~4 caractères par token ;
+# on compte 3,5 par prudence). Au-delà, une nouvelle conversation commence (voir conversation_trop_longue).
+MAX_CARACTERES_HISTORIQUE = 24_000
 MAX_CARACTERES_RESULTAT_ANCIEN = 1_500
+# Au-delà, une nouvelle conversation commence ; le dernier échange y est repris s'il est assez court
+MAX_CARACTERES_REPRISE = 8_000
+AVIS_CONVERSATION_LONGUE = ("Notre conversation est devenue trop longue : mon cerveau n'arrive plus à tout suivre, "
+                            "et je risquerais de me tromper. Je commence donc une nouvelle conversation. "
+                            "L'ancienne reste dans la liste à gauche.")
 
 JOURS = ["lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche"]
 MOIS = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août",
@@ -267,14 +274,40 @@ def _taille(message: dict) -> int:
     return len(message.get("content") or "") + len(json.dumps(message.get("tool_calls") or ""))
 
 
-def preparer_historique(messages: list[dict]) -> list[dict]:
-    """Raccourcit l'historique pour tenir dans la mémoire du modèle (sans toucher à l'original)."""
+def _raccourcir_resultats(messages: list[dict]) -> list[dict]:
+    """Copie de l'historique où les anciens résultats d'outils (sauf ceux du dernier échange) sont résumés."""
     resultat = [dict(m) for m in messages]
-    # 1. Les anciens résultats d'outils (sauf ceux du dernier échange) sont résumés
     dernier_user = max((i for i, m in enumerate(resultat) if m["role"] == "user"), default=0)
     for i, m in enumerate(resultat[:dernier_user]):
         if m["role"] == "tool" and len(m.get("content") or "") > MAX_CARACTERES_RESULTAT_ANCIEN:
             resultat[i]["content"] = m["content"][:MAX_CARACTERES_RESULTAT_ANCIEN] + " […]"
+    return resultat
+
+
+def conversation_trop_longue(messages: list[dict]) -> bool:
+    """Vrai quand le modèle ne verrait plus le début de la conversation : il risquerait alors de se tromper."""
+    return len(messages) > 1 and sum(map(_taille, _raccourcir_resultats(messages))) > MAX_CARACTERES_HISTORIQUE
+
+
+def dernier_echange(messages: list[dict]) -> list[dict]:
+    """La dernière question et la réponse écrite qui l'a suivie, reprises dans une nouvelle conversation
+    pour garder le fil (« et pour le deuxième ? ») ; rien si elles sont trop longues."""
+    j = next((j for j in reversed(range(len(messages))) if messages[j]["role"] == "assistant"
+              and messages[j].get("content") and not messages[j].get("tool_calls")), None)
+    if j is None:
+        return []
+    i = next((i for i in reversed(range(j)) if messages[i]["role"] == "user"), None)
+    if i is None:
+        return []
+    echange = [{"role": "user", "content": messages[i]["content"]},
+               {"role": "assistant", "content": messages[j]["content"]}]
+    return echange if sum(map(_taille, echange)) <= MAX_CARACTERES_REPRISE else []
+
+
+def preparer_historique(messages: list[dict]) -> list[dict]:
+    """Raccourcit l'historique pour tenir dans la mémoire du modèle (sans toucher à l'original)."""
+    # 1. Les anciens résultats d'outils (sauf ceux du dernier échange) sont résumés
+    resultat = _raccourcir_resultats(messages)
     # 2. On retire les échanges les plus anciens tant que c'est trop long
     while sum(map(_taille, resultat)) > MAX_CARACTERES_HISTORIQUE and len(resultat) > 1:
         resultat.pop(0)

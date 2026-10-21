@@ -17,7 +17,8 @@ from webview.dom import DOMEventHandler
 
 from dawaa import accueil, config, dates, demarrage, ecran, premier_lancement
 from dawaa.config import Reglages
-from dawaa.llm.agent import Agent, bloc_fichiers_ouverts, bloc_memoire
+from dawaa.llm.agent import (AVIS_CONVERSATION_LONGUE, Agent, bloc_fichiers_ouverts, bloc_memoire,
+                             conversation_trop_longue, dernier_echange)
 from dawaa.llm.serveur import ServeurLLM
 from dawaa import outils
 from dawaa.outils import agenda as outil_agenda
@@ -199,12 +200,17 @@ class Application:
             for f in fichiers:
                 contenu += f"\n[Fichier joint : {f}]"
             self._messages.append({"role": "user", "content": contenu})
+            recommencee = conversation_trop_longue(self._messages)
+            if recommencee:
+                self._recommencer_conversation()
             navigation.contexte.derniere_demande = texte
             image, consigne = self._regarder_ecran(texte)
             self._etat("reflechit")
             self._js("debutReponse")
             if oral:
                 self._lecteur.arreter()
+                if recommencee:
+                    self._lecteur.ajouter(AVIS_CONVERSATION_LONGUE + "\n")
             tampon = {"texte": "", "envoi": time.monotonic()}
 
             def vider():
@@ -230,26 +236,51 @@ class Application:
                 if oral:
                     self._lecteur.arreter()
 
-            try:
-                nouveaux = self._agent.repondre(self._messages, sur_texte, sur_outil, sur_effacer, image, consigne)
-            except httpx.HTTPError:
-                log.exception("Erreur du moteur IA")
-                vider()
-                self._messages.pop()
-                self._js("erreurReponse", "Désolé, je n'ai pas pu répondre. Réessayez dans un instant.")
-                self._redemarrer_moteur_si_besoin()
-                return
+            nouveaux = None
+            while nouveaux is None:
+                try:
+                    nouveaux = self._agent.repondre(self._messages, sur_texte, sur_outil, sur_effacer, image, consigne)
+                except httpx.HTTPError as e:
+                    # Malgré l'estimation, la demande dépasse la mémoire du modèle (le moteur répond 400) :
+                    # on recommence une conversation plutôt que d'afficher une erreur
+                    refusee = isinstance(e, httpx.HTTPStatusError) and e.response.status_code == 400
+                    if refusee and not recommencee and len(self._messages) > 1:
+                        log.warning("Demande refusée par le moteur, nouvelle conversation : %s", e.response.text[:200])
+                        recommencee = True
+                        tampon["texte"] = ""
+                        self._recommencer_conversation()
+                        self._js("debutReponse")
+                        if oral:
+                            self._lecteur.arreter()
+                            self._lecteur.ajouter(AVIS_CONVERSATION_LONGUE + "\n")
+                        continue
+                    log.exception("Erreur du moteur IA")
+                    vider()
+                    self._messages.pop()
+                    self._js("erreurReponse", "Désolé, je n'ai pas pu répondre. Réessayez dans un instant.")
+                    self._redemarrer_moteur_si_besoin()
+                    return
             vider()
             self._messages += nouveaux
             self._js("finReponse", elements_a_afficher(nouveaux))
             self._id_conversation = self.historique.enregistrer(self._id_conversation, self._messages)
             self._js("listeConversations", self.historique.lister())
+            if recommencee:
+                self._resumer_en_arriere_plan()  # Dawaa se souviendra de l'essentiel de l'ancienne conversation
             if oral:
                 self._lecteur.terminer()
             if not (oral and self._lecteur.occupe):
                 self._etat("pret")
         finally:
             self._en_reponse.release()
+
+    def _recommencer_conversation(self) -> None:
+        """Conversation trop longue pour le modèle : la demande part dans une nouvelle conversation, avec le
+        dernier échange pour garder le fil. L'ancienne reste enregistrée dans la liste."""
+        log.info("Conversation trop longue : nouvelle conversation")
+        self._messages = [*dernier_echange(self._messages[:-1]), self._messages[-1]]
+        self._id_conversation = None
+        self._js("conversationRecommencee", self._messages, AVIS_CONVERSATION_LONGUE)
 
     def _regarder_ecran(self, texte: str) -> tuple[bytes | None, str]:
         """« Regarde mon écran » : capture à joindre à la demande, ou consigne si c'est impossible."""
