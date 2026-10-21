@@ -6,7 +6,7 @@ from dawaa import outils
 from dawaa.app import Application
 from dawaa.config import Reglages
 from dawaa.llm.agent import CORRECTION_FICHIER, correction_necessaire
-from dawaa.outils import email, navigation
+from dawaa.outils import carnet, email, navigation
 from dawaa.stockage.memoire import Memoire
 
 
@@ -14,6 +14,7 @@ from dawaa.stockage.memoire import Memoire
 def memoire(tmp_path):
     m = Memoire(tmp_path / "test.sqlite")
     email.configurer(m, lambda: "gmail")
+    carnet.configurer(m)
     return m
 
 
@@ -70,14 +71,13 @@ def test_jamais_d_adresse_inventee(memoire, ouverts):
     assert "ne l'invente pas" in outils.executer(
         "email", {"action": "preparer", "destinataire": "nicole@gmail.com", "message": "Bonjour"})
     assert "donnée lui-même" in outils.executer(
-        "email", {"action": "ajouter_contact", "nom": "Nicole", "adresse": "nicole@gmail.com"})
+        "carnet", {"action": "ajouter", "nom": "Nicole", "email": "nicole@gmail.com"})
     assert ouverts == [] and memoire.contacts() == []
 
 
 def test_adresse_dictee_enregistree(memoire, ouverts):
     dire("Son adresse c'est nicole point martin arobase gmail point com")
-    resultat = outils.executer("email", {"action": "ajouter_contact", "nom": "Nicole",
-                                         "adresse": "nicole.martin@gmail.com"})
+    resultat = outils.executer("carnet", {"action": "ajouter", "nom": "Nicole", "email": "nicole.martin@gmail.com"})
     assert "Contact enregistré : Nicole — nicole.martin@gmail.com" in resultat
     # Adresse donnée dans la même phrase que la demande : contact ajouté au passage
     dire("Envoie un mail à Paul, son adresse est paul@free.fr, pour lui dire bonjour")
@@ -98,7 +98,7 @@ def test_homonymes(memoire, ouverts):
 def test_carnet(memoire):
     memoire.ajouter_contact("Nicole", "nicole@gmail.com")
     assert memoire.ajouter_contact("nicole", "Nicole.M@gmail.com")[1] is True  # même nom : mise à jour
-    assert memoire.contacts() == [{"id": 1, "nom": "nicole", "email": "nicole.m@gmail.com"}]
+    assert memoire.contacts() == [{"id": 1, "nom": "nicole", "email": "nicole.m@gmail.com", "telephone": ""}]
     with pytest.raises(ValueError):
         memoire.ajouter_contact("Paul", "pas une adresse")
     memoire.supprimer_contact(1)

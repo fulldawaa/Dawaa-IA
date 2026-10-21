@@ -2,12 +2,12 @@
 import json
 import logging
 
-from dawaa.outils import agenda, email, excel, navigation, ordinateur, souvenirs, web, word
+from dawaa.outils import agenda, carnet, email, excel, navigation, ordinateur, souvenirs, web, word
 from dawaa.outils.fichiers import ErreurOutil
 
 log = logging.getLogger(__name__)
 
-MODULES = (web, navigation, ordinateur, word, excel, souvenirs, agenda, email)
+MODULES = (web, navigation, ordinateur, word, excel, souvenirs, agenda, email, carnet)
 FONCTIONS = {nom: f for m in MODULES for nom, f in m.FONCTIONS.items()}
 SCHEMAS = [{"type": "function", "function": s} for m in MODULES for s in m.SCHEMAS]
 
@@ -23,6 +23,7 @@ MESSAGES_ATTENTE = {
     "memoire": "Je note…",
     "agenda": "Je regarde l'agenda…",
     "email": "Je prépare l'e-mail…",
+    "carnet": "Je regarde le carnet d'adresses…",
 }
 MESSAGES_TABLEAU = {"lire": "Je lis le tableau…", "creer": "Je crée le tableau Excel…",
                     "modifier": "Je modifie le tableau…", "graphique": "J'ajoute le graphique…"}

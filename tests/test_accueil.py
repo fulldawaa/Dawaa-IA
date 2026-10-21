@@ -25,7 +25,7 @@ def test_enregistrer_tout(reglages, memoire):
     souvenirs = [s["texte"] for s in memoire.souvenirs()]
     assert "Son prénom est Michel." in souvenirs
     assert "Utilise surtout Dawaa pour : agenda et rappels, préparer des e-mails." in souvenirs
-    moi = [{"id": 1, "nom": "Moi (Michel)", "email": "michel.durand@hotmail.fr"}]
+    moi = [{"id": 1, "nom": "Moi (Michel)", "email": "michel.durand@hotmail.fr", "telephone": ""}]
     assert memoire.trouver_contacts("moi") == moi and memoire.trouver_contacts("Michel") == moi
 
 

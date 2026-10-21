@@ -323,7 +323,7 @@
       li.innerHTML = '<span class="texte"><strong></strong><br><span class="url"></span></span>' +
         '<button title="Supprimer">' + ICONES.croix + "</button>";
       li.querySelector("strong").textContent = c.nom;
-      li.querySelector(".url").textContent = c.email;
+      li.querySelector(".url").textContent = [c.telephone, c.email].filter(Boolean).join(" · ");
       li.querySelector("button").onclick = async () => afficherMemoire(await api().supprimer_contact(c.id));
       contacts.appendChild(li);
     });
@@ -347,9 +347,12 @@
   };
   $("#form-contact").onsubmit = async (e) => {
     e.preventDefault();
-    const donnees = await api().ajouter_contact($("#contact-nom").value, $("#contact-email").value);
+    const donnees = await api().ajouter_contact($("#contact-nom").value, $("#contact-email").value,
+                                                $("#contact-telephone").value);
     afficherMemoire(donnees);
-    if (!donnees.erreurContact) { $("#contact-nom").value = ""; $("#contact-email").value = ""; }
+    if (!donnees.erreurContact) {
+      $("#contact-nom").value = ""; $("#contact-email").value = ""; $("#contact-telephone").value = "";
+    }
   };
   $("#form-favori").onsubmit = async (e) => {
     e.preventDefault();

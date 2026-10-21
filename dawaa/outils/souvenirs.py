@@ -8,7 +8,7 @@ from pathlib import Path
 
 from dawaa.outils import navigation
 from dawaa.outils.fichiers import ErreurOutil
-from dawaa.stockage.memoire import Memoire
+from dawaa.stockage.memoire import Memoire, numero_telephone
 from dawaa.stockage.sensible import raison_sensible
 
 MARQUE_SOUVENIR = "[souvenir n°{id}]"
@@ -61,6 +61,9 @@ def memoire(action: str, texte: str) -> str:
         if raison := raison_sensible(texte):
             return (f"Refusé : cela contient {raison}. Par sécurité, je ne retiens jamais ce genre d'information. "
                     "Explique-le gentiment à l'utilisateur et conseille-lui de le garder en lieu sûr.")
+        if numero_telephone(texte):
+            return ("Rien n'a été retenu : un numéro de téléphone se range dans le carnet d'adresses. Appelle "
+                    "maintenant l'outil carnet avec action=ajouter, le nom de la personne et ce numéro.")
         lignes = []
         for partie in decouper(texte):
             id_, remplace = _memoire.retenir(partie)

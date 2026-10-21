@@ -22,7 +22,7 @@ from dawaa.llm.serveur import ServeurLLM
 from dawaa import outils
 from dawaa.outils import agenda as outil_agenda
 from dawaa.outils import email as outil_email
-from dawaa.outils import navigation, ordinateur, souvenirs
+from dawaa.outils import carnet, navigation, ordinateur, souvenirs
 from dawaa.outils.fichiers import MARQUE_CHEMIN
 from dawaa.stockage.agenda import Agenda
 from dawaa.stockage.historique import Historique
@@ -63,6 +63,7 @@ class Application:
         navigation.configurer(self.memoire)
         outil_agenda.configurer(self.agenda)
         outil_email.configurer(self.memoire, lambda: self.reglages.messagerie)
+        carnet.configurer(self.memoire)
         self.notifier_windows = None  # bulle près de l'horloge, fournie par main.py
         self.alarme = Alarme()
         self._resume_en_cours = threading.Lock()
@@ -638,9 +639,9 @@ class Api:
         self._app.agenda.supprimer(int(id_))
         return self._app.contenu_agenda()
 
-    def ajouter_contact(self, nom, email):
+    def ajouter_contact(self, nom, email, telephone=""):
         try:
-            self._app.memoire.ajouter_contact(str(nom), str(email))
+            self._app.memoire.ajouter_contact(str(nom), str(email or ""), str(telephone or ""))
         except ValueError as e:
             return {**self._app.contenu_memoire(), "erreurContact": str(e)}
         return self._app.contenu_memoire()

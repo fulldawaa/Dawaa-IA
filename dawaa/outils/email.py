@@ -45,22 +45,23 @@ def email(action: str, destinataire: str = "", objet: str = "", message: str = "
     action = (action or "").lower()
     if action.startswith("prepar") or action.startswith("écri") or action.startswith("ecri"):
         return _preparer(destinataire, objet, message)
-    if "contact" in action:
-        return _ajouter_contact(nom or destinataire, adresse)
-    raise ErreurOutil("Action inconnue : utilise « preparer » ou « ajouter_contact ».")
+    if "contact" in action:  # ancienne action, désormais dans l'outil carnet
+        from dawaa.outils import carnet
+        return carnet.ajouter(nom or destinataire, email=adresse)
+    raise ErreurOutil("Action inconnue : utilise « preparer ».")
 
 
-def _adresse_verifiee(adresse: str) -> str | None:
+def adresse_verifiee(adresse: str) -> str | None:
     """L'adresse, seulement si l'utilisateur l'a donnée dans son message ou si elle est dans le carnet."""
     adresse = adresse.lower()
-    connues = adresses_dites(navigation.contexte.derniere_demande) + [c["email"] for c in _memoire.contacts()]
+    connues = adresses_dites(navigation.contexte.derniere_demande) + [c["email"] for c in _memoire.contacts() if c["email"]]
     return adresse if adresse in connues else None
 
 
 def _destinataire(destinataire: str) -> tuple[str, str, str]:
     """Renvoie (nom, adresse, remarque)."""
     if ecrites := adresses_dites(destinataire):
-        if not (adresse := _adresse_verifiee(ecrites[0])):
+        if not (adresse := adresse_verifiee(ecrites[0])):
             raise ErreurOutil("Cette adresse n'a été ni donnée par l'utilisateur ni trouvée dans le carnet : ne "
                               "l'invente pas. Demande-lui l'adresse e-mail exacte. Rien n'a été préparé.")
         contact = next((c for c in _memoire.contacts() if c["email"] == adresse), None)
@@ -68,18 +69,26 @@ def _destinataire(destinataire: str) -> tuple[str, str, str]:
     if re.fullmatch(r"\s*(a |à )?moi([- ]m[eê]me)?\s*", destinataire.lower()):
         destinataire = "moi"  # « envoie-moi… » : le contact « Moi (prénom) » créé à l'accueil
     trouves = _memoire.trouver_contacts(destinataire)
+    dites = adresses_dites(navigation.contexte.derniere_demande)
+    if len(trouves) == 1 and not trouves[0]["email"] and len(dites) == 1:
+        # Contact connu par son seul numéro : l'adresse donnée dans la même phrase le complète
+        _memoire.ajouter_contact(trouves[0]["nom"], dites[0])
+        return trouves[0]["nom"], dites[0], f" L'adresse de « {trouves[0]['nom']} » a été ajoutée au carnet."
+    if len(trouves) == 1 and not trouves[0]["email"]:
+        raise ErreurOutil(f"« {trouves[0]['nom']} » est dans le carnet, mais sans adresse e-mail. Demande-la à "
+                          "l'utilisateur. Quand il l'a donnée, enregistre-la (outil carnet, action=ajouter) puis "
+                          "prépare le message. Rien n'a été préparé.")
     if len(trouves) == 1:
         return trouves[0]["nom"], trouves[0]["email"], ""
     if len(trouves) > 1:
         noms = ", ".join(f"{c['nom']} ({c['email']})" for c in trouves)
         raise ErreurOutil(f"Plusieurs contacts correspondent à « {destinataire} » : {noms}. Demande lequel.")
     # Pas dans le carnet : l'utilisateur a peut-être donné l'adresse dans la même phrase
-    dites = adresses_dites(navigation.contexte.derniere_demande)
     if len(dites) == 1 and destinataire.strip():
         _memoire.ajouter_contact(destinataire.strip(), dites[0])
         return destinataire.strip(), dites[0], f" « {destinataire.strip()} » a été ajouté(e) au carnet d'adresses."
     raise ErreurOutil(f"« {destinataire} » n'est pas dans le carnet d'adresses. Demande son adresse e-mail à "
-                      "l'utilisateur. Quand il l'a donnée, enregistre-la (action=ajouter_contact) puis prépare le "
+                      "l'utilisateur. Quand il l'a donnée, enregistre-la (outil carnet, action=ajouter) puis prépare le "
                       "message. Rien n'a été préparé.")
 
 
@@ -102,21 +111,6 @@ def _preparer(destinataire: str, objet: str, message: str) -> str:
             "doit le relire puis cliquer lui-même sur « Envoyer ». Ne dis jamais que le message est envoyé.")
 
 
-def _ajouter_contact(nom: str, adresse: str) -> str:
-    if not (nom or "").strip():
-        raise ErreurOutil("Indique le nom de la personne.")
-    ecrites = adresses_dites(adresse or "") or adresses_dites(navigation.contexte.derniere_demande)
-    if not ecrites or not (verifiee := _adresse_verifiee(ecrites[0])):
-        raise ErreurOutil("Je n'enregistre que l'adresse que l'utilisateur a donnée lui-même dans son message. "
-                          "Demande-lui de la dire ou de l'écrire.")
-    try:
-        _, remplace = _memoire.ajouter_contact(nom, verifiee)
-    except ValueError as e:
-        raise ErreurOutil(str(e)) from None
-    return (f"{'Contact mis à jour' if remplace else 'Contact enregistré'} : {nom.strip()} — {verifiee}. "
-            "Répète l'adresse à l'utilisateur pour qu'il la vérifie.")
-
-
 SCHEMAS = [
     {
         "name": "email",
@@ -124,16 +118,14 @@ SCHEMAS = [
             "E-mails. action=preparer : rédige un e-mail et l'ouvre dans la messagerie de l'utilisateur (Gmail ou "
             "Outlook), prêt à être relu ; c'est l'utilisateur qui clique sur Envoyer. destinataire = le nom de la "
             "personne tel que l'utilisateur l'a dit (ex. « Nicole »), jamais une adresse inventée. "
-            "action=ajouter_contact : enregistre dans le carnet l'adresse que l'utilisateur vient de donner."),
+            "Pour enregistrer une adresse dans le carnet, utilise l'outil carnet."),
         "parameters": {
             "type": "object",
             "properties": {
-                "action": {"type": "string", "enum": ["preparer", "ajouter_contact"]},
+                "action": {"type": "string", "enum": ["preparer"]},
                 "destinataire": {"type": "string", "description": "Nom de la personne (ou adresse dite par l'utilisateur)"},
                 "objet": {"type": "string", "description": "Objet court du message"},
                 "message": {"type": "string", "description": "Texte complet du message, avec formule de politesse"},
-                "nom": {"type": "string", "description": "Pour ajouter_contact : nom de la personne"},
-                "adresse": {"type": "string", "description": "Pour ajouter_contact : adresse donnée par l'utilisateur"},
             },
             "required": ["action"],
         },

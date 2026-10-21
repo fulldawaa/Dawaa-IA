@@ -47,6 +47,9 @@ class Memoire:
             CREATE TABLE IF NOT EXISTS contacts (
                 id INTEGER PRIMARY KEY AUTOINCREMENT, nom TEXT NOT NULL, email TEXT NOT NULL);
         """)
+        # Carnets créés avant l'arrivée des numéros de téléphone
+        if "telephone" not in {c[1] for c in self._db.execute("PRAGMA table_info(contacts)")}:
+            self._db.execute("ALTER TABLE contacts ADD COLUMN telephone TEXT NOT NULL DEFAULT ''")
         self._db.commit()
 
     # ---------- souvenirs ----------
@@ -178,23 +181,31 @@ class Memoire:
 
     def contacts(self) -> list[dict]:
         with self._verrou:
-            lignes = self._db.execute("SELECT id, nom, email FROM contacts ORDER BY nom COLLATE NOCASE").fetchall()
-        return [{"id": i, "nom": n, "email": e} for i, n, e in lignes]
+            lignes = self._db.execute(
+                "SELECT id, nom, email, telephone FROM contacts ORDER BY nom COLLATE NOCASE").fetchall()
+        return [{"id": i, "nom": n, "email": e, "telephone": t} for i, n, e, t in lignes]
 
-    def ajouter_contact(self, nom: str, email: str) -> tuple[int, bool]:
-        """Ajoute un contact ; un contact du même nom est mis à jour. Renvoie (id, remplacé)."""
-        nom, email = nom.strip(), email.strip().lower()
+    def ajouter_contact(self, nom: str, email: str = "", telephone: str = "") -> tuple[int, bool]:
+        """Ajoute un contact ; un contact du même nom est complété (l'e-mail ou le numéro donné remplace l'ancien,
+        l'autre est gardé). Renvoie (id, remplacé)."""
+        nom, email, telephone = nom.strip(), (email or "").strip().lower(), (telephone or "").strip()
         if not nom:
             raise ValueError("Donnez le nom de la personne.")
-        if not ADRESSE_EMAIL.fullmatch(email):
+        if not email and not telephone:
+            raise ValueError("Donnez une adresse e-mail ou un numéro de téléphone.")
+        if email and not ADRESSE_EMAIL.fullmatch(email):
             raise ValueError("Cette adresse e-mail ne semble pas correcte (exemple : nicole.martin@gmail.com).")
+        if telephone and not (telephone := numero_telephone(telephone)):
+            raise ValueError("Ce numéro de téléphone ne semble pas correct (exemple : 06 12 34 56 78).")
         existant = next((c for c in self.contacts() if normaliser(c["nom"]) == normaliser(nom)), None)
         with self._verrou:
             if existant:
-                self._db.execute("UPDATE contacts SET nom = ?, email = ? WHERE id = ?", (nom, email, existant["id"]))
+                self._db.execute("UPDATE contacts SET nom = ?, email = ?, telephone = ? WHERE id = ?",
+                                 (nom, email or existant["email"], telephone or existant["telephone"], existant["id"]))
                 self._db.commit()
                 return existant["id"], True
-            cur = self._db.execute("INSERT INTO contacts (nom, email) VALUES (?, ?)", (nom, email))
+            cur = self._db.execute("INSERT INTO contacts (nom, email, telephone) VALUES (?, ?, ?)",
+                                   (nom, email, telephone))
             self._db.commit()
             return cur.lastrowid, False
 
@@ -214,6 +225,25 @@ class Memoire:
 
 
 ADRESSE_EMAIL = re.compile(r"[a-z0-9._%+-]+@[a-z0-9-]+(\.[a-z0-9-]+)*\.[a-z]{2,}", re.I)
+NUMERO_ECRIT = re.compile(r"(?<!\d)(?:\+\s?\d|0)(?:[\s.\-()]{0,2}\d){8,13}(?!\d)")
+
+
+def numero_telephone(texte: str) -> str | None:
+    """Premier numéro de téléphone du texte, au format lu correctement par la voix : « 06 12 34 56 78 ».
+
+    « 06.12.34.56.78 », « 0612345678 » et « +33 6 12 34 56 78 » donnent « 06 12 34 56 78 » ;
+    un numéro étranger (« +44 20 7946 0958 ») est gardé tel quel."""
+    if not (m := NUMERO_ECRIT.search(texte or "")):
+        return None
+    chiffres = re.sub(r"\D", "", m.group())
+    if m.group().startswith("+"):
+        if chiffres.startswith("33") and len(chiffres) in (11, 12):
+            chiffres = "0" + chiffres[-9:]  # +33 (0)6… → 06…
+        else:
+            return "+" + re.sub(r"\s+", " ", m.group()[1:].strip())
+    if len(chiffres) != 10:
+        return None
+    return " ".join(chiffres[i:i + 2] for i in range(0, 10, 2))
 
 
 def cle_raccourci(nom: str) -> str:

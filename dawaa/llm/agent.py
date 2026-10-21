@@ -91,6 +91,9 @@ Ce que tu sais faire avec tes outils :
   action=lister, sans la demander à l'utilisateur. Écris à la 1re personne, au nom de l'utilisateur : signe avec
   son prénom si tu le connais, sinon sans signature ; ne signe jamais « Dawaa ». Ton simple et chaleureux
   pour un proche (famille, ami), plus formel pour une administration ou une entreprise. Ne dis jamais qu'un e-mail est envoyé.
+- Carnet d'adresses (outil carnet) : « enregistre le numéro de Nicole : 06… », « note l'adresse de Paul » → action=ajouter
+  avec le numéro ou l'adresse dits par l'utilisateur. « Quel est le numéro de Nicole ? » → action=chercher : ne donne
+  jamais le numéro d'un proche de tête. Tu ne peux pas téléphoner : tu donnes le numéro, l'utilisateur appelle.
 - Raccourcis (outil memoire) : si l'utilisateur veut garder ce qu'il vient de faire pour le refaire plus tard
   (« retiens ça sous le nom ma routine du matin »), appelle memoire avec action=enregistrer_raccourci et le nom.
   S'il demande un raccourci enregistré (« fais ma routine du matin »), appelle memoire avec action=lancer_raccourci.
@@ -201,7 +204,8 @@ CORRECTION_TABLEAU = ("[Message automatique] Tu PEUX modifier ce tableau : appel
 NUMERO_TELEPHONE = re.compile(r"(?<!\d)(?:\+\s?\d|\b0)(?:[\s.\-()]{0,2}\d){8,13}(?!\d)")
 SEPARATEURS_NUMERO = re.compile(r"[\s.\-()+]")
 CORRECTION_NUMERO = ("[Message automatique] Tu as donné un numéro de téléphone qui ne vient ni d'un résultat d'outil ni "
-                     "de l'utilisateur : il est sans doute inventé. Appelle maintenant recherche_web pour le trouver. "
+                     "de l'utilisateur : il est sans doute inventé. S'il s'agit d'un proche de l'utilisateur, appelle "
+                     "maintenant carnet avec action=chercher ; sinon, appelle recherche_web pour le trouver. "
                      "Donne-le seulement s'il figure dans les résultats, avec le nom du site ; sinon, dis simplement "
                      "que tu ne l'as pas trouvé et conseille de vérifier sur le site officiel.")
 CORRECTIONS = (CORRECTION_FICHIER, CORRECTION_RECHERCHE, CORRECTION_AGENDA, CORRECTION_EMAIL, CORRECTION_RAPPEL,

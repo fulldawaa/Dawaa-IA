@@ -121,12 +121,15 @@ def enregistrer(reglages, memoire: Memoire, prenom: str, email: str, usages: lis
 
     if prenom and prenom != reglages.prenom:
         _remplacer_souvenir(memoire, "Son prénom est ", prenom)
-    # Contact « Moi (Michel) » : retrouvé par « envoie-moi » comme par « envoie à Michel »
+    # Contact « Moi (Michel) » : retrouvé par « envoie-moi » comme par « envoie à Michel ». Son numéro est gardé.
+    telephone = ""
     for c in memoire.contacts():
         if c["nom"] == "Moi" or c["nom"].startswith("Moi ("):
+            telephone = telephone or c["telephone"]
             memoire.supprimer_contact(c["id"])
+    if email or telephone:
+        memoire.ajouter_contact(f"Moi ({prenom})" if prenom else "Moi", email, telephone)
     if email:
-        memoire.ajouter_contact(f"Moi ({prenom})" if prenom else "Moi", email)
         reglages.messagerie = messagerie_pour(email) or reglages.messagerie
     if usages and usages != reglages.usages:
         _remplacer_souvenir(memoire, "Utilise surtout Dawaa pour : ", ", ".join(USAGES[u].lower() for u in usages))
