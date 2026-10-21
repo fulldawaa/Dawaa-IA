@@ -71,3 +71,20 @@ def test_salutation():
     sans_prenom = accueil.salutation("", datetime(2026, 11, 1, 19, 0))
     assert sans_prenom.startswith("Bonsoir, bienvenue ! Nous sommes le dimanche 1er novembre, et il est 19 heures.")
     assert "il est 1 heure 30." in accueil.salutation("", datetime(2026, 11, 2, 1, 30))
+
+
+def test_texte_agrandi_une_seule_fois(tmp_path, monkeypatch):
+    import json
+    from dawaa import config
+    fichier = tmp_path / "config.json"
+    monkeypatch.setattr(config, "FICHIER_CONFIG", fichier)
+    monkeypatch.setattr(config, "DOSSIER_DONNEES", tmp_path)
+    assert Reglages().taille_texte == config.TAILLE_TEXTE_DEFAUT
+    fichier.write_text(json.dumps({"taille_texte": 16}), encoding="utf-8")  # ancien défaut
+    reglages = Reglages.charger()
+    assert reglages.taille_texte == config.TAILLE_TEXTE_DEFAUT
+    reglages.taille_texte = 16  # choisi ensuite par l'utilisateur : on le garde
+    reglages.enregistrer()
+    assert Reglages.charger().taille_texte == 16
+    fichier.write_text(json.dumps({"taille_texte": 24}), encoding="utf-8")
+    assert Reglages.charger().taille_texte == 24

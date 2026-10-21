@@ -508,7 +508,8 @@ class Application:
         if "voix" in valeurs and valeurs["voix"] in VOIX_DISPONIBLES:
             self.reglages.voix = self._lecteur.voix = valeurs["voix"]
         if "tailleTexte" in valeurs:
-            self.reglages.taille_texte = max(12, min(28, int(valeurs["tailleTexte"])))
+            self.reglages.taille_texte = max(config.TAILLE_TEXTE_MIN, min(config.TAILLE_TEXTE_MAX,
+                                                                   int(valeurs["tailleTexte"])))
         if "sonAlarme" in valeurs and (valeurs["sonAlarme"] in SONS or valeurs["sonAlarme"] == ""):
             self.reglages.son_alarme = valeurs["sonAlarme"]
         if valeurs.get("messagerie") in outil_email.MESSAGERIES:

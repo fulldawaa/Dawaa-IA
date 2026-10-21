@@ -32,11 +32,17 @@ def chemin_ui() -> Path:
     return dossier_application() / "dawaa" / "ui"
 
 
+# Taille du texte en pixels : grande par défaut, l'application s'adresse surtout à des personnes âgées
+TAILLE_TEXTE_DEFAUT = 20
+TAILLE_TEXTE_MIN, TAILLE_TEXTE_MAX = 16, 32
+ANCIENNE_TAILLE_TEXTE = 16  # défaut des versions 0.1 et 0.2
+
+
 @dataclass
 class Reglages:
     touche_parler: str = "ctrl_r"  # nom de touche pynput
     voix: str = "fr-FR-DeniseNeural"
-    taille_texte: int = 16
+    taille_texte: int = TAILLE_TEXTE_DEFAUT
     modele: str = ""  # nom du fichier GGUF choisi au premier lancement
     modele_voix: str = "small"
     demarrer_avec_windows: bool = True  # pour que les rappels de l'agenda sonnent
@@ -60,7 +66,13 @@ class Reglages:
         except (OSError, ValueError):
             return cls()
         connus = {k: v for k, v in donnees.items() if k in cls.__dataclass_fields__}
-        return cls(**connus)
+        reglages = cls(**connus)
+        # Une seule fois : l'ancienne taille par défaut passe à la nouvelle (une taille choisie ensuite est gardée)
+        if not reglages.extras.get("texte_agrandi"):
+            if reglages.taille_texte == ANCIENNE_TAILLE_TEXTE:
+                reglages.taille_texte = TAILLE_TEXTE_DEFAUT
+            reglages.extras["texte_agrandi"] = True
+        return reglages
 
 
 def preparer_dossiers() -> None:
