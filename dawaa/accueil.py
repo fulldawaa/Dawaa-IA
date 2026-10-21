@@ -1,6 +1,8 @@
 """Accueil du premier lancement : faire connaissance (prénom, e-mail, usages) et présenter ce que Dawaa sait faire."""
 import re
+from datetime import datetime
 
+from dawaa.dates import JOURS, MOIS
 from dawaa.stockage.memoire import ADRESSE_EMAIL, Memoire
 
 # Chaque fonction : présentée dans l'aperçu « Ce que je sais faire », proposée sur l'écran d'accueil si
@@ -88,6 +90,17 @@ def suggestions(usages: list[str]) -> list[dict]:
     par_id = {f["id"]: f for f in FONCTIONS}
     return [{"emoji": par_id[i]["emoji"], "titre": par_id[i]["suggestion"][0], "sousTitre": par_id[i]["suggestion"][1],
              "texte": par_id[i]["suggestion"][2]} for i in ids]
+
+
+def salutation(prenom: str, maintenant: datetime) -> str:
+    """Phrase dite à voix haute quand Dawaa est prêt, écrite pour être bien lue par la voix (« 9 heures 5 »)."""
+    bonjour = "Bonsoir" if maintenant.hour >= 18 else "Bonjour"
+    jour = "1er" if maintenant.day == 1 else str(maintenant.day)
+    heure = f"{maintenant.hour} heure{'s' if maintenant.hour > 1 else ''}"
+    if maintenant.minute:
+        heure += f" {maintenant.minute}"
+    return (f"{bonjour}{' ' + prenom if prenom else ''}, bienvenue ! Nous sommes le {JOURS[maintenant.weekday()]} "
+            f"{jour} {MOIS[maintenant.month - 1]}, et il est {heure}. Que puis-je faire pour vous aujourd'hui ?")
 
 
 def _remplacer_souvenir(memoire: Memoire, debut: str, valeur: str) -> None:

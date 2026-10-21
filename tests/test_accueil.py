@@ -1,3 +1,5 @@
+from datetime import datetime
+
 import pytest
 
 from dawaa import accueil
@@ -60,3 +62,12 @@ def test_apercu_et_suggestions():
                                                              "Chercher sur internet"]
     assert [s["titre"] for s in accueil.suggestions(["agenda"])] == ["Noter un rendez-vous", "Écrire une lettre",
                                                                      "Faire un tableau Excel"]
+
+
+def test_salutation():
+    assert accueil.salutation("Michel", datetime(2026, 10, 21, 9, 5)) == (
+        "Bonjour Michel, bienvenue ! Nous sommes le mercredi 21 octobre, et il est 9 heures 5. "
+        "Que puis-je faire pour vous aujourd'hui ?")
+    sans_prenom = accueil.salutation("", datetime(2026, 11, 1, 19, 0))
+    assert sans_prenom.startswith("Bonsoir, bienvenue ! Nous sommes le dimanche 1er novembre, et il est 19 heures.")
+    assert "il est 1 heure 30." in accueil.salutation("", datetime(2026, 11, 2, 1, 30))

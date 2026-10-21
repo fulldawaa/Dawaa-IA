@@ -126,6 +126,9 @@ class Application:
             chargement_voix.join()
             self._pret = True
             self._etat("pret")
+            # Lancé avec Windows, Dawaa reste discret près de l'horloge : pas de voix surprise à l'allumage
+            if self.reglages.accueil_fait and not demarrage.lance_au_demarrage():
+                self._lecteur.dire(accueil.salutation(self.reglages.prenom, datetime.now()))
             self._resumer_en_arriere_plan()
         except Exception as e:
             log.exception("Échec du démarrage")
