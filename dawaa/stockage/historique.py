@@ -7,6 +7,8 @@ from pathlib import Path
 
 from dawaa import config
 
+MAX_CONVERSATIONS = 5  # au-delà, les plus anciennes sont effacées
+
 
 class Historique:
     def __init__(self, chemin: Path | None = None):
@@ -25,7 +27,13 @@ class Historique:
         if "resume" not in colonnes:  # ajout de la mémoire des conversations (v0.2)
             self._db.execute("ALTER TABLE conversations ADD COLUMN resume TEXT")
             self._db.execute("ALTER TABLE conversations ADD COLUMN resume_maj REAL")
+        self._limiter()  # historiques enregistrés avant la limite
         self._db.commit()
+
+    def _limiter(self) -> None:
+        """Ne garde que les MAX_CONVERSATIONS conversations les plus récentes (verrou déjà pris ou inutile)."""
+        self._db.execute("DELETE FROM conversations WHERE id NOT IN "
+                         "(SELECT id FROM conversations ORDER BY modifiee DESC, id DESC LIMIT ?)", (MAX_CONVERSATIONS,))
 
     def a_resumer(self, sauf: int | None, limite: int = 5) -> list[int]:
         """Conversations récentes dont le résumé est absent ou périmé (hors conversation en cours)."""
@@ -50,7 +58,7 @@ class Historique:
     def lister(self, limite: int = 50) -> list[dict]:
         with self._verrou:
             lignes = self._db.execute(
-                "SELECT id, titre, modifiee FROM conversations ORDER BY modifiee DESC LIMIT ?", (limite,)
+                "SELECT id, titre, modifiee FROM conversations ORDER BY modifiee DESC, id DESC LIMIT ?", (limite,)
             ).fetchall()
         return [{"id": i, "titre": t, "modifiee": m} for i, t, m in lignes]
 
@@ -70,6 +78,7 @@ class Historique:
                     "INSERT INTO conversations (titre, messages, modifiee) VALUES (?, ?, ?)",
                     (titre, donnees, time.time()))
                 id_ = cur.lastrowid
+                self._limiter()
             else:
                 self._db.execute(
                     "UPDATE conversations SET messages = ?, modifiee = MAX(?, modifiee + 0.001) WHERE id = ?", (donnees, time.time(), id_))

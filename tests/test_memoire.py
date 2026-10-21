@@ -88,6 +88,26 @@ def test_resumes_de_conversations(tmp_path):
     assert h.a_resumer(sauf=b) == [a]  # conversation reprise : résumé à refaire
 
 
+def test_cinq_conversations_au_plus(tmp_path):
+    chemin = tmp_path / "h.sqlite"
+    h = Historique(chemin)
+    ids = [h.enregistrer(None, [{"role": "user", "content": f"Question {i}"}]) for i in range(7)]
+    assert [c["id"] for c in h.lister()] == ids[:1:-1]  # les 5 dernières, la plus récente en tête
+    # Reprendre une ancienne conversation la garde : c'est la plus ancienne restante qui part ensuite
+    h.enregistrer(ids[2], [{"role": "user", "content": "Question 2, suite"}])
+    h.enregistrer(None, [{"role": "user", "content": "Question 7"}])
+    assert ids[2] in [c["id"] for c in h.lister()] and ids[3] not in [c["id"] for c in h.lister()]
+    assert h.charger(ids[0]) == []
+    # Un historique plus ancien que la limite est réduit à l'ouverture
+    import sqlite3, time
+    db = sqlite3.connect(chemin)
+    db.executemany("INSERT INTO conversations (titre, messages, modifiee) VALUES ('x', '[]', ?)",
+                   [(time.time() + i,) for i in range(4)])
+    db.commit()
+    db.close()
+    assert len(Historique(chemin).lister()) == 5
+
+
 def test_garde_fou_memoire():
     assert annonce_sans_outil("Ma fille s'appelle Léa", "C'est noté ! J'ai bien retenu que votre fille s'appelle Léa.")
     assert annonce_sans_outil("Ouvre le site de ma mairie", "J'ai ouvert le site de la mairie pour vous.")
