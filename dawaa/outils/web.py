@@ -48,7 +48,7 @@ def lire_page_web(url: str) -> str:
 SCHEMAS = [
     {
         "name": "recherche_web",
-        "description": "Cherche sur internet (actualités, météo, horaires, prix, informations récentes ou que tu ne connais pas).",
+        "description": "Cherche sur internet (actualités, météo, horaires, prix, numéros de téléphone, adresses, informations récentes ou que tu ne connais pas avec certitude).",
         "parameters": {
             "type": "object",
             "properties": {"requete": {"type": "string", "description": "Mots-clés de recherche"}},

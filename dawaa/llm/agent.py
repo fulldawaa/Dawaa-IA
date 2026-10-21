@@ -44,9 +44,16 @@ Façon de parler :
 Règle absolue : un fichier n'existe que si tu as appelé l'outil qui le crée et qu'il a répondu sans erreur.
 Ne dis JAMAIS qu'un fichier est créé, enregistré ou ouvert sans cela. Si l'utilisateur veut un fichier, appelle l'outil.
 
+Autre règle absolue : n'invente jamais une information. Un numéro de téléphone, une adresse, des horaires, un prix,
+un nom ou un chiffre précis ne se devinent pas : donne-les seulement s'ils figurent mot pour mot dans un résultat d'outil
+ou si l'utilisateur te les a dits. Sinon, dis simplement « Je ne sais pas » ou « Je n'ai pas trouvé », et propose de
+chercher sur internet ou de vérifier sur le site officiel. Une réponse fausse est bien pire qu'un « je ne sais pas ».
+
 Ce que tu sais faire avec tes outils :
 - Chercher sur internet (recherche_web, puis lire_page_web si besoin). Cite la source (le nom du site).
-  Utilise-les pour toute information récente : actualités, météo, horaires, prix.
+  Utilise-les pour toute information récente (actualités, météo, horaires, prix) et pour toute information précise
+  que tu ne connais pas avec certitude : numéro de téléphone, adresse, horaires d'ouverture d'un commerce ou d'un service.
+  Si les résultats ne donnent pas l'information, dis-le : ne la complète pas de tête.
 - Regarder l'écran : quand l'utilisateur dit « regarde mon écran », une capture t'est jointe automatiquement.
   S'il parle de ce qu'il voit sans le dire, propose-lui de dire « regarde mon écran ».
 - Calculs : quand le programme te donne des « calculs exacts » (en bas de ces consignes), recopie ces résultats
@@ -190,8 +197,33 @@ REFUS = re.compile(r"\b(je ne (peux|sais) pas|vous devez le faire|faites-le vous
 CORRECTION_TABLEAU = ("[Message automatique] Tu PEUX modifier ce tableau : appelle maintenant l'outil tableau avec "
                       'action=modifier et les modifications (ex. {"type": "supprimer_ligne", "ligne": 1}). '
                       "Une copie est enregistrée, l'original reste intact.")
+# Garde-fou : le modèle donne un numéro de téléphone qui ne vient ni d'un outil ni de l'utilisateur (donc inventé)
+NUMERO_TELEPHONE = re.compile(r"(?<!\d)(?:\+\s?\d|\b0)(?:[\s.\-()]{0,2}\d){8,13}(?!\d)")
+SEPARATEURS_NUMERO = re.compile(r"[\s.\-()+]")
+CORRECTION_NUMERO = ("[Message automatique] Tu as donné un numéro de téléphone qui ne vient ni d'un résultat d'outil ni "
+                     "de l'utilisateur : il est sans doute inventé. Appelle maintenant recherche_web pour le trouver. "
+                     "Donne-le seulement s'il figure dans les résultats, avec le nom du site ; sinon, dis simplement "
+                     "que tu ne l'as pas trouvé et conseille de vérifier sur le site officiel.")
 CORRECTIONS = (CORRECTION_FICHIER, CORRECTION_RECHERCHE, CORRECTION_AGENDA, CORRECTION_EMAIL, CORRECTION_RAPPEL,
-               CORRECTION_TABLEAU)
+               CORRECTION_TABLEAU, CORRECTION_NUMERO)
+
+
+def _texte(message: dict) -> str:
+    contenu = message.get("content") or ""
+    if isinstance(contenu, list):  # demande accompagnée d'une capture d'écran
+        return " ".join(p.get("text", "") for p in contenu if p.get("type") == "text")
+    return contenu
+
+
+def numero_invente(texte: str, messages: list[dict], contexte: str = "") -> bool:
+    """Vrai si `texte` contient un numéro de téléphone absent des demandes, des résultats d'outils et du contexte."""
+    numeros = NUMERO_TELEPHONE.findall(texte)
+    if not numeros:
+        return False
+    sources = contexte + " ".join(_texte(m) for m in messages if m["role"] in ("user", "tool"))
+    sources = SEPARATEURS_NUMERO.sub("", sources)
+    # On compare les 9 derniers chiffres : « +33 1 23… » et « 01 23… » sont le même numéro
+    return any(re.sub(r"\D", "", n)[-9:] not in sources for n in numeros)
 
 
 def annonce_sans_outil(demande: str, texte: str) -> bool:
@@ -344,10 +376,16 @@ class Agent:
                 {"type": "image_url", "image_url": {"url": ecran.en_url(image)}}]}]
         for _ in range(MAX_TOURS_OUTILS):
             message = self._flux(messages + nouveaux, sur_texte, supplement)
-            if (not self.annule and not message.get("tool_calls") and not deja_corrige
-                    and not any(m["role"] == "tool" for m in nouveaux)
-                    and (correction := correction_necessaire(derniere_demande, message["content"]))):
-                # Le modèle prétend avoir agi, ou demande où est un fichier, sans appeler d'outil : on efface et on le relance
+            correction = None
+            if not self.annule and not message.get("tool_calls") and not deja_corrige:
+                if not any(m["role"] == "tool" for m in nouveaux):
+                    correction = correction_necessaire(derniere_demande, message["content"])
+                # Avec une capture d'écran, le numéro peut venir de l'image : on ne peut pas le vérifier
+                if not correction and image is None and numero_invente(
+                        message["content"], messages + nouveaux, self._contexte() + supplement):
+                    correction = CORRECTION_NUMERO
+            if correction:
+                # Le modèle prétend avoir agi, demande où est un fichier ou invente un numéro : on efface et on le relance
                 log.warning("Réponse sans appel d'outil, relance : %s", message["content"][:200])
                 deja_corrige = True
                 sur_effacer()
