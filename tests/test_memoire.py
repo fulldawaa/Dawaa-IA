@@ -1,12 +1,12 @@
 import pytest
 
-from dawaa import outils
-from dawaa.app import elements_a_afficher
-from dawaa.llm.agent import annonce_sans_outil, bloc_memoire
-from dawaa.outils import navigation, souvenirs
-from dawaa.stockage.historique import Historique
-from dawaa.stockage.memoire import Memoire
-from dawaa.stockage.sensible import masquer, raison_sensible
+from raya import outils
+from raya.app import elements_a_afficher
+from raya.llm.agent import annonce_sans_outil, bloc_memoire
+from raya.outils import navigation, souvenirs
+from raya.stockage.historique import Historique
+from raya.stockage.memoire import Memoire
+from raya.stockage.sensible import masquer, raison_sensible
 
 
 @pytest.fixture

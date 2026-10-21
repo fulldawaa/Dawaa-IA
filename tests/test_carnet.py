@@ -2,11 +2,11 @@ import sqlite3
 
 import pytest
 
-from dawaa import accueil, outils
-from dawaa.config import Reglages
-from dawaa.llm.agent import numero_invente
-from dawaa.outils import carnet, email, navigation
-from dawaa.stockage.memoire import Memoire, numero_telephone
+from raya import accueil, outils
+from raya.config import Reglages
+from raya.llm.agent import numero_invente
+from raya.outils import carnet, email, navigation
+from raya.stockage.memoire import Memoire, numero_telephone
 
 
 @pytest.fixture
@@ -91,7 +91,7 @@ def test_chercher(memoire):
 
 
 def test_memoire_renvoie_vers_le_carnet(memoire):
-    from dawaa.outils import souvenirs
+    from raya.outils import souvenirs
     souvenirs.configurer(memoire)
     resultat = outils.executer("memoire", {"action": "retenir", "texte": "Le numéro de sa fille est 06 12 34 56 78"})
     assert "carnet" in resultat and memoire.souvenirs() == []

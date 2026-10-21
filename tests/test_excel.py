@@ -3,8 +3,8 @@ from pathlib import Path
 
 from openpyxl import load_workbook
 
-from dawaa import outils
-from dawaa.outils import excel
+from raya import outils
+from raya.outils import excel
 
 
 def _chemin(resultat: str) -> Path:
@@ -167,7 +167,7 @@ def test_supprimer_une_colonne():
 
 
 def test_refus_de_modifier_un_tableau_corrige():
-    from dawaa.llm.agent import CORRECTION_TABLEAU, correction_necessaire
+    from raya.llm.agent import CORRECTION_TABLEAU, correction_necessaire
     reponse = "Je ne peux pas supprimer une ligne de votre fichier Excel directement. Vous devez le faire vous-même."
     assert correction_necessaire("Efface la première ligne.", reponse) == CORRECTION_TABLEAU
     assert correction_necessaire("Supprime le fichier budget", "Je ne peux pas supprimer de fichier.") is None

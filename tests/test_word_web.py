@@ -3,9 +3,9 @@ from pathlib import Path
 
 from docx import Document
 
-from dawaa import outils
-from dawaa.llm.agent import MAX_CARACTERES_HISTORIQUE, preparer_historique
-from dawaa.outils import web, word
+from raya import outils
+from raya.llm.agent import MAX_CARACTERES_HISTORIQUE, preparer_historique
+from raya.outils import web, word
 
 
 def test_creer_puis_lire_word():
@@ -24,7 +24,7 @@ def test_creer_puis_lire_word():
 
 
 def test_interface_retrouve_le_fichier_cree():
-    from dawaa.app import FICHIER_RESULTAT
+    from raya.app import FICHIER_RESULTAT
 
     resultat = word.creer_document_word("Note", "Bonjour")
     assert "Emplacement à annoncer à l'utilisateur : " in resultat
@@ -88,5 +88,5 @@ def test_odt_abime(tmp_path):
 
 
 def test_odt_accepte_par_l_interface():
-    from dawaa.app import EXTENSIONS_JOINTES
+    from raya.app import EXTENSIONS_JOINTES
     assert ".odt" in EXTENSIONS_JOINTES

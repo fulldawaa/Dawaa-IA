@@ -1,4 +1,4 @@
-"""Génère assets/dawaa.png et assets/dawaa.ico (bulle de dialogue sur fond vert)."""
+"""Génère assets/raya.png et assets/raya.ico (bulle de dialogue sur fond vert)."""
 from pathlib import Path
 
 from PIL import Image, ImageDraw
@@ -21,7 +21,7 @@ for i, h in enumerate((44, 92, 120, 92, 44)):
 
 dossier = RACINE / "assets"
 dossier.mkdir(exist_ok=True)
-img.save(dossier / "dawaa.png")
-img.resize((128, 128), Image.LANCZOS).save(RACINE / "dawaa" / "ui" / "dawaa.png")
-img.save(dossier / "dawaa.ico", sizes=[(16, 16), (24, 24), (32, 32), (48, 48), (64, 64), (128, 128), (256, 256)])
+img.save(dossier / "raya.png")
+img.resize((128, 128), Image.LANCZOS).save(RACINE / "raya" / "ui" / "raya.png")
+img.save(dossier / "raya.ico", sizes=[(16, 16), (24, 24), (32, 32), (48, 48), (64, 64), (128, 128), (256, 256)])
 print("Icônes créées dans", dossier)

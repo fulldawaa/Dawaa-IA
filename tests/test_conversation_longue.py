@@ -3,10 +3,10 @@ import threading
 
 import httpx
 
-from dawaa.app import Application
-from dawaa.llm.agent import (AVIS_CONVERSATION_LONGUE, MAX_CARACTERES_HISTORIQUE, conversation_trop_longue,
+from raya.app import Application
+from raya.llm.agent import (AVIS_CONVERSATION_LONGUE, MAX_CARACTERES_HISTORIQUE, conversation_trop_longue,
                              dernier_echange)
-from dawaa.stockage.historique import Historique
+from raya.stockage.historique import Historique
 
 
 # Huit échanges de cette taille dépassent la limite ; un seul tient largement

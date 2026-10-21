@@ -1,4 +1,4 @@
-﻿# Construit dist\Dawaa-Setup.exe : tests → PyInstaller → Inno Setup.
+﻿# Construit dist\Raya-Setup.exe : tests → PyInstaller → Inno Setup.
 # Usage : powershell -ExecutionPolicy Bypass -File build.ps1
 $ErrorActionPreference = "Stop"
 Set-Location $PSScriptRoot
@@ -17,7 +17,7 @@ Write-Host "Tests…"
 if ($LASTEXITCODE -ne 0) { throw "Les tests ont échoué" }
 
 Write-Host "PyInstaller…"
-& .venv\Scripts\pyinstaller.exe dawaa.spec --noconfirm
+& .venv\Scripts\pyinstaller.exe raya.spec --noconfirm
 if ($LASTEXITCODE -ne 0) { throw "PyInstaller a échoué" }
 
 $iscc = @(
@@ -28,6 +28,6 @@ $iscc = @(
 if (-not $iscc) { throw "Inno Setup 6 introuvable : winget install JRSoftware.InnoSetup" }
 
 Write-Host "Inno Setup…"
-& $iscc "installeur\dawaa.iss"
+& $iscc "installeur\raya.iss"
 if ($LASTEXITCODE -ne 0) { throw "Inno Setup a échoué" }
-Get-Item "dist\Dawaa-Setup.exe" | Select-Object Name, @{n = "Taille (Mo)"; e = { [int]($_.Length / 1MB) } }
+Get-Item "dist\Raya-Setup.exe" | Select-Object Name, @{n = "Taille (Mo)"; e = { [int]($_.Length / 1MB) } }

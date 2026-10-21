@@ -1,4 +1,4 @@
-from dawaa.voix.tts import nettoyer_pour_voix
+from raya.voix.tts import nettoyer_pour_voix
 
 
 def test_nettoyage_markdown():
@@ -11,7 +11,7 @@ Voici **le total** : 1 050 €.
 
 - premier point
 Source : [Météo-France](https://meteofrance.com/) et https://exemple.fr/page
-Fichier : C:\\Users\\moi\\Documents\\Dawaa\\Dépenses.xlsx"""
+Fichier : C:\\Users\\moi\\Documents\\Raya\\Dépenses.xlsx"""
     propre = nettoyer_pour_voix(texte)
     assert "**" not in propre and "#" not in propre and "|" not in propre
     assert "Voici le total : 1 050 euros." in propre
@@ -22,7 +22,7 @@ Fichier : C:\\Users\\moi\\Documents\\Dawaa\\Dépenses.xlsx"""
 
 
 def test_efface_mal_entendu_corrige():
-    from dawaa.voix.stt import corriger
+    from raya.voix.stt import corriger
     assert corriger("et face la première ligne.") == "Efface la première ligne."
     assert corriger("Et fesse-la.") == "Efface-la."
     assert corriger("Aie Faises Leu") == "Efface-le"
@@ -33,12 +33,12 @@ def test_efface_mal_entendu_corrige():
 
 
 def test_phrases_inventees_ignorees():
-    from dawaa.voix.stt import corriger
+    from raya.voix.stt import corriger
     assert corriger("Sous-titres réalisés par la communauté Amara.org") == ""
     assert corriger("Merci d'avoir regardé cette vidéo !") == ""
 
 
 def test_vocabulaire_avec_les_noms():
-    from dawaa.voix.stt import VOCABULAIRE, vocabulaire
+    from raya.voix.stt import VOCABULAIRE, vocabulaire
     assert vocabulaire() == VOCABULAIRE
     assert vocabulaire(["Michel", "", "Nicole Martin"]).endswith(" Noms : Michel, Nicole Martin.")

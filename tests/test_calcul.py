@@ -1,6 +1,6 @@
 import pytest
 
-from dawaa import calcul
+from raya import calcul
 
 
 @pytest.mark.parametrize("demande, attendu", [

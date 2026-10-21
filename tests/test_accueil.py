@@ -2,9 +2,9 @@ from datetime import datetime
 
 import pytest
 
-from dawaa import accueil
-from dawaa.config import Reglages
-from dawaa.stockage.memoire import Memoire
+from raya import accueil
+from raya.config import Reglages
+from raya.stockage.memoire import Memoire
 
 
 @pytest.fixture
@@ -24,7 +24,7 @@ def test_enregistrer_tout(reglages, memoire):
     assert reglages.accueil_fait and reglages.messagerie == "outlook"
     souvenirs = [s["texte"] for s in memoire.souvenirs()]
     assert "Son prénom est Michel." in souvenirs
-    assert "Utilise surtout Dawaa pour : agenda et rappels, préparer des e-mails." in souvenirs
+    assert "Utilise surtout Raya pour : agenda et rappels, préparer des e-mails." in souvenirs
     moi = [{"id": 1, "nom": "Moi (Michel)", "email": "michel.durand@hotmail.fr", "telephone": ""}]
     assert memoire.trouver_contacts("moi") == moi and memoire.trouver_contacts("Michel") == moi
 
@@ -75,7 +75,7 @@ def test_salutation():
 
 def test_texte_agrandi_une_seule_fois(tmp_path, monkeypatch):
     import json
-    from dawaa import config
+    from raya import config
     fichier = tmp_path / "config.json"
     monkeypatch.setattr(config, "FICHIER_CONFIG", fichier)
     monkeypatch.setattr(config, "DOSSIER_DONNEES", tmp_path)

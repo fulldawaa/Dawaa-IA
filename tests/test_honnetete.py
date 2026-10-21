@@ -1,4 +1,4 @@
-from dawaa.llm.agent import CORRECTION_NUMERO, Agent, numero_invente
+from raya.llm.agent import CORRECTION_NUMERO, Agent, numero_invente
 
 RESULTAT_WEB = ("Résultats pour « mairie de Roanne téléphone » :\n1. Mairie de Roanne\n"
                 "   Accueil : 04.77.23.20.00, du lundi au vendredi\n   Source : https://www.roanne.fr")

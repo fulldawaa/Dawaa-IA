@@ -3,10 +3,10 @@ import io
 import pytest
 from PIL import Image
 
-from dawaa import ecran, premier_lancement
-from dawaa.llm import agent as agent_module
-from dawaa.llm.agent import Agent
-from dawaa.llm.serveur import ServeurLLM
+from raya import ecran, premier_lancement
+from raya.llm import agent as agent_module
+from raya.llm.agent import Agent
+from raya.llm.serveur import ServeurLLM
 
 
 @pytest.mark.parametrize("texte", [
@@ -71,10 +71,10 @@ def test_serveur_charge_la_vue(tmp_path, monkeypatch):
     lances = []
     for nom in ("llama-server.exe", "modele.gguf", "vue.gguf"):
         (tmp_path / nom).touch()
-    from dawaa.llm import serveur
+    from raya.llm import serveur
     monkeypatch.setattr(serveur, "chemin_llama_server", lambda: tmp_path / "llama-server.exe")
     monkeypatch.setattr(serveur.subprocess, "Popen", lambda cmd, **_: lances.append(cmd))
-    monkeypatch.setattr(serveur, "_lier_a_dawaa", lambda _: None)
+    monkeypatch.setattr(serveur, "_lier_a_raya", lambda _: None)
     monkeypatch.setattr(ServeurLLM, "_attendre_pret", lambda *_: None)
     ServeurLLM(tmp_path / "modele.gguf", tmp_path / "vue.gguf").demarrer()
     ServeurLLM(tmp_path / "modele.gguf").demarrer()

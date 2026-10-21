@@ -2,9 +2,9 @@ import pytest
 from docx import Document
 from openpyxl import Workbook
 
-from dawaa import outils
-from dawaa.outils import fichiers, navigation, ordinateur, word
-from dawaa.outils.fichiers import ErreurOutil
+from raya import outils
+from raya.outils import fichiers, navigation, ordinateur, word
+from raya.outils.fichiers import ErreurOutil
 
 
 @pytest.fixture
@@ -145,7 +145,7 @@ def test_dossier_non_cite_par_l_utilisateur_ignore(bureau, monkeypatch):
 
 
 def test_relance_si_le_modele_demande_ou_est_le_fichier():
-    from dawaa.llm.agent import CORRECTION_RECHERCHE, correction_necessaire
+    from raya.llm.agent import CORRECTION_RECHERCHE, correction_necessaire
     reponse = "Pouvez-vous me donner le nom du fichier ou me dire où il se trouve ?"
     assert correction_necessaire("Lis-moi ma liste de courses", reponse) == CORRECTION_RECHERCHE
     assert correction_necessaire("Bonjour", "Bonjour ! Comment allez-vous ?") is None

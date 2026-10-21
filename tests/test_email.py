@@ -2,12 +2,12 @@ from urllib.parse import parse_qs, urlparse
 
 import pytest
 
-from dawaa import outils
-from dawaa.app import Application
-from dawaa.config import Reglages
-from dawaa.llm.agent import CORRECTION_FICHIER, correction_necessaire
-from dawaa.outils import carnet, email, navigation
-from dawaa.stockage.memoire import Memoire
+from raya import outils
+from raya.app import Application
+from raya.config import Reglages
+from raya.llm.agent import CORRECTION_FICHIER, correction_necessaire
+from raya.outils import carnet, email, navigation
+from raya.stockage.memoire import Memoire
 
 
 @pytest.fixture
@@ -110,16 +110,16 @@ def test_mail_annonce_envoye_sans_outil():
 
 
 def test_date_cherchee_dans_l_agenda():
-    from dawaa.llm.agent import CORRECTION_AGENDA
+    from raya.llm.agent import CORRECTION_AGENDA
     reponse = "J'ai besoin d'une information : quelle est la date du prochain restaurant ?"
     assert correction_necessaire("Envoie un mail à Nicole avec la date du prochain restaurant", reponse) == CORRECTION_AGENDA
     assert correction_necessaire("Rappelle-moi le dentiste", "À quelle heure est le dentiste ?") is None
 
 
-def test_pas_de_signature_dawaa(memoire, ouverts):
+def test_pas_de_signature_raya(memoire, ouverts):
     memoire.ajouter_contact("Paul", "paul@free.fr")
     dire("Écris à Paul")
-    for signature in ("Dawaa", "Votre assistant", "Votre assistant Dawaa.", "[Votre prénom]"):
+    for signature in ("Raya", "Votre assistant", "Votre assistant Raya.", "Votre assistante Raya.", "[Votre prénom]"):
         ouverts.clear()
         outils.executer("email", {"action": "preparer", "destinataire": "Paul",
                                   "message": f"Bonjour Paul,\n\nÀ samedi !\n\nCordialement,\n{signature}"})
@@ -145,7 +145,7 @@ def test_envoie_moi(memoire, ouverts):
 
 
 def test_relance_si_texte_a_copier_coller():
-    from dawaa.llm.agent import CORRECTION_EMAIL
+    from raya.llm.agent import CORRECTION_EMAIL
     reponse = "Je ne peux pas envoyer de mail directement. Voici le projet de message à copier-coller :"
     assert correction_necessaire("Envoie-moi par mail la liste de courses", reponse) == CORRECTION_EMAIL
     assert correction_necessaire("Envoie-moi par mail la liste de courses",
@@ -155,5 +155,5 @@ def test_relance_si_texte_a_copier_coller():
 
 
 def test_envoie_moi_ne_demande_pas_a_qui():
-    from dawaa.llm.agent import CORRECTION_EMAIL
+    from raya.llm.agent import CORRECTION_EMAIL
     assert correction_necessaire("Envoie-moi par mail la liste", "À qui voulez-vous l'envoyer ?") == CORRECTION_EMAIL

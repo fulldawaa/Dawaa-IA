@@ -5,9 +5,9 @@ from pathlib import Path
 import pytest
 from openpyxl import load_workbook
 
-from dawaa import outils
-from dawaa.llm.agent import CORRECTION_RECHERCHE, bloc_fichiers_ouverts, correction_necessaire
-from dawaa.outils import excel, fichiers, ordinateur
+from raya import outils
+from raya.llm.agent import CORRECTION_RECHERCHE, bloc_fichiers_ouverts, correction_necessaire
+from raya.outils import excel, fichiers, ordinateur
 
 EXEMPLES = Path(__file__).parent
 

@@ -3,7 +3,7 @@ import hashlib
 import httpx
 import pytest
 
-from dawaa import config, premier_lancement as pl
+from raya import config, premier_lancement as pl
 
 
 @pytest.fixture
@@ -62,3 +62,16 @@ def test_choix_du_modele_selon_la_ram(monkeypatch):
     assert pl.choisir_modele() == pl.MODELE_4B
     monkeypatch.setattr(pl.psutil, "virtual_memory", lambda: Memoire(4))
     assert pl.choisir_modele() == pl.MODELE_2B
+
+
+def test_dossiers_de_dawaa_repris(tmp_path):
+    ancien, nouveau = tmp_path / "Dawaa", tmp_path / "Raya"
+    (ancien / "modeles").mkdir(parents=True)
+    (ancien / "modeles" / "qwen.gguf").write_text("modèle")
+    assert config.reprendre_ancien_nom([(ancien, nouveau)]) == [nouveau]
+    assert (nouveau / "modeles" / "qwen.gguf").read_text() == "modèle" and not ancien.exists()
+    # Déjà repris, ou nouvelle installation : rien ne bouge
+    ancien.mkdir()
+    assert config.reprendre_ancien_nom([(ancien, nouveau)]) == []
+    assert ancien.exists() and (nouveau / "modeles" / "qwen.gguf").exists()
+    assert config.reprendre_ancien_nom([(tmp_path / "Absent", tmp_path / "Autre")]) == []

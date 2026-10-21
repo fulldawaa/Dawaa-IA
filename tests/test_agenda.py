@@ -5,12 +5,12 @@ from pathlib import Path
 
 import pytest
 
-from dawaa import dates, demarrage, outils
-from dawaa.app import Application
-from dawaa.config import Reglages
-from dawaa.voix import alarme as alarme_module
-from dawaa.outils import agenda as outil_agenda
-from dawaa.stockage.agenda import Agenda
+from raya import dates, demarrage, outils
+from raya.app import Application
+from raya.config import Reglages
+from raya.voix import alarme as alarme_module
+from raya.outils import agenda as outil_agenda
+from raya.stockage.agenda import Agenda
 
 # Samedi 17 octobre 2026, 10 h
 MAINTENANT = datetime(2026, 10, 17, 10, 0)
@@ -132,7 +132,7 @@ def test_annonce_fin_de_minuteur(agenda):
 
 
 def test_minuteur_annonce_sans_outil():
-    from dawaa.llm.agent import CORRECTION_RAPPEL, correction_necessaire
+    from raya.llm.agent import CORRECTION_RAPPEL, correction_necessaire
     assert correction_necessaire("Mets un minuteur de 10 minutes", "C'est lancé ! Le minuteur sonnera dans 10 minutes.")         == CORRECTION_RAPPEL
     assert correction_necessaire("Rappelle-moi le pain demain", "D'accord, c'est noté pour demain.") == CORRECTION_RAPPEL
     assert correction_necessaire("Mets un minuteur", "Pour combien de temps ?") is None
@@ -154,7 +154,7 @@ def test_rappel_unique(agenda):
 def test_rappel_repete_saute_les_jours_manques(agenda):
     agenda.ajouter("Médicaments", datetime(2026, 10, 10, 8, 0), "jour")
     (du,) = agenda.rappels_dus(MAINTENANT)
-    assert du["manque"]  # Dawaa était fermé
+    assert du["manque"]  # Raya était fermée
     agenda.marquer_rappele(du, MAINTENANT)
     assert agenda.a_venir(MAINTENANT)[0]["quand"] == datetime(2026, 10, 18, 8, 0)
 
@@ -201,7 +201,7 @@ def test_rappel_avant_impossible_ignore(agenda):
 
 
 def test_rappelle_moi_ajoute_au_lieu_de_lister(agenda, monkeypatch):
-    from dawaa.outils import navigation
+    from raya.outils import navigation
     monkeypatch.setattr(navigation.contexte, "derniere_demande", "Rappelle-moi le dentiste mardi à 15 h.")
     assert "AJOUTER" in outils.executer("agenda", {"action": "lister", "periode": "demain"})
     monkeypatch.setattr(navigation.contexte, "derniere_demande", "Rappelle-moi ce que j'ai demain")
@@ -273,7 +273,7 @@ def test_annonces(agenda):
     annonces = app.verifier_rappels(MAINTENANT + timedelta(minutes=1))
     assert annonces == ["C'est l'heure : Prendre les médicaments.",
                         "Rappel : Dentiste, aujourd'hui (samedi 17 octobre) à 11 h.",
-                        "Rappel manqué pendant que Dawaa était fermé : Pharmacie (vendredi 16 octobre à 10 h)."]
+                        "Rappel manqué pendant que Raya était fermée : Pharmacie (vendredi 16 octobre à 10 h)."]
     assert bulles == annonces
     # Une seule alarme pour les trois rappels, fenêtre affichée par-dessus les autres programmes…
     assert app.alarme.sons == ["Alarm03"] and app.fenetre.affichee and app.fenetre.on_top
@@ -341,9 +341,9 @@ def test_demarrage_ignore_en_developpement(monkeypatch):
 def test_demarrage_inscrit_l_exe(monkeypatch):
     ecrit, efface = [], []
     monkeypatch.setattr(demarrage.sys, "frozen", True, raising=False)
-    monkeypatch.setattr(demarrage.sys, "executable", r"C:\Programmes\Dawaa\Dawaa.exe")
+    monkeypatch.setattr(demarrage.sys, "executable", r"C:\Programmes\Raya\Raya.exe")
     monkeypatch.setattr(demarrage.winreg, "SetValueEx", lambda cle, nom, _, type_, valeur: ecrit.append((nom, valeur)))
     monkeypatch.setattr(demarrage.winreg, "DeleteValue", lambda cle, nom: efface.append(nom))
     demarrage.appliquer(True)
     demarrage.appliquer(False)
-    assert ecrit == [("Dawaa", r'"C:\Programmes\Dawaa\Dawaa.exe" --demarrage')] and efface == ["Dawaa"]
+    assert ecrit == [("Raya", r'"C:\Programmes\Raya\Raya.exe" --demarrage')] and efface == ["Raya"]

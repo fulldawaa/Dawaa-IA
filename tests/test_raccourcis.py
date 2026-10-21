@@ -1,10 +1,10 @@
 import pytest
 
-from dawaa import outils
-from dawaa.app import Application
-from dawaa.llm.agent import bloc_memoire
-from dawaa.outils import fichiers, navigation, ordinateur, souvenirs
-from dawaa.stockage.memoire import Memoire
+from raya import outils
+from raya.app import Application
+from raya.llm.agent import bloc_memoire
+from raya.outils import fichiers, navigation, ordinateur, souvenirs
+from raya.stockage.memoire import Memoire
 
 
 @pytest.fixture
