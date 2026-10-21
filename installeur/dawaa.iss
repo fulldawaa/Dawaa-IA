@@ -1,6 +1,6 @@
 ﻿; Installateur de Dawaa (Inno Setup 6). Construit par build.ps1.
 #define NomApp "Dawaa"
-#define VersionApp "0.2.0"
+#define VersionApp "0.3.0"
 
 [Setup]
 AppId={{7C1E8F5A-4B2D-4E8A-9D3F-2A6B1C0D9E47}
