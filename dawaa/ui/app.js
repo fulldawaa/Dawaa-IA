@@ -363,19 +363,17 @@
 
   // ---------- accueil : faire connaissance, puis ce que je sais faire ----------
 
+  const DERNIERE_ETAPE = 3;  // prénom, e-mail, puis ce que je sais faire
   let etapeAccueil = 1;
   let apercuSeul = false;  // bouton « Ce que je sais faire » : seulement la dernière étape
   let accueilFait = true;
   let installationEnCours = false;
-
-  function usagesCoches() {
-    return [...document.querySelectorAll("#accueil-usages input:checked")].map((c) => c.value);
-  }
+  let usagesChoisis = [];  // choisis lors d'une ancienne présentation : on les garde
 
   async function afficherFonctions() {
     const liste = $("#accueil-fonctions");
     liste.innerHTML = "";
-    (await api().apercu(usagesCoches())).forEach((f) => {
+    (await api().apercu(usagesChoisis)).forEach((f) => {
       const carte = document.createElement("div");
       carte.className = "fonction" + (f.choisie ? " choisie" : "");
       carte.innerHTML = '<div class="entete"><span class="emoji"></span><strong></strong></div><p></p><div class="exemples"></div>';
@@ -402,10 +400,10 @@
   async function afficherEtapeAccueil(n) {
     etapeAccueil = n;
     document.querySelectorAll("#ecran-accueil .etape").forEach((s) => { s.hidden = +s.dataset.etape !== n; });
-    if (n === 4) await afficherFonctions();
-    $("#accueil-passer").hidden = n === 4;
-    $("#accueil-etape").textContent = apercuSeul ? "" : `Étape ${n} sur 4`;
-    $("#accueil-suivant").textContent = n < 4 ? "Suivant" : apercuSeul ? "Fermer" : "C'est parti !";
+    if (n === DERNIERE_ETAPE) await afficherFonctions();
+    $("#accueil-passer").hidden = n === DERNIERE_ETAPE;
+    $("#accueil-etape").textContent = apercuSeul ? "" : `Étape ${n} sur ${DERNIERE_ETAPE}`;
+    $("#accueil-suivant").textContent = n < DERNIERE_ETAPE ? "Suivant" : apercuSeul ? "Fermer" : "C'est parti !";
     const champ = { 1: "#accueil-prenom", 2: "#accueil-email" }[n];
     if (champ) $(champ).focus();
   }
@@ -413,29 +411,18 @@
   async function ouvrirAccueil(etape) {
     if (!api()) return;
     const d = await api().accueil();
-    apercuSeul = etape === 4;
+    apercuSeul = etape === DERNIERE_ETAPE;
     $("#accueil-prenom").value = d.prenom;
     $("#accueil-email").value = d.email;
     $("#accueil-erreur").hidden = true;
-    const grille = $("#accueil-usages");
-    grille.innerHTML = "";
-    d.usages.forEach((u) => {
-      const l = document.createElement("label");
-      l.className = "usage";
-      l.innerHTML = '<input type="checkbox"><span class="emoji"></span><span></span>';
-      l.querySelector("input").value = u.id;
-      l.querySelector("input").checked = d.usagesChoisis.includes(u.id);
-      l.querySelector(".emoji").textContent = u.emoji;
-      l.querySelector("span:last-child").textContent = u.titre;
-      grille.appendChild(l);
-    });
+    usagesChoisis = d.usagesChoisis;
     $("#accueil-telechargement").hidden = !installationEnCours;
     $("#ecran-accueil").hidden = false;
     await afficherEtapeAccueil(etape);
   }
 
   async function terminerAccueil() {
-    const r = await api().enregistrer_accueil($("#accueil-prenom").value, $("#accueil-email").value, usagesCoches());
+    const r = await api().enregistrer_accueil($("#accueil-prenom").value, $("#accueil-email").value, usagesChoisis);
     if (r.erreur) {
       $("#accueil-erreur").textContent = r.erreur;
       $("#accueil-erreur").hidden = false;
@@ -446,7 +433,7 @@
   }
 
   $("#accueil-suivant").onclick = () => {
-    if (etapeAccueil < 4) return afficherEtapeAccueil(etapeAccueil + 1);
+    if (etapeAccueil < DERNIERE_ETAPE) return afficherEtapeAccueil(etapeAccueil + 1);
     if (apercuSeul) { $("#ecran-accueil").hidden = true; return; }
     terminerAccueil();
   };
@@ -458,7 +445,7 @@
   ["#accueil-prenom", "#accueil-email"].forEach((id) => $(id).addEventListener("keydown", (e) => {
     if (e.key === "Enter") $("#accueil-suivant").click();
   }));
-  $("#btn-aide").onclick = () => ouvrirAccueil(4);
+  $("#btn-aide").onclick = () => ouvrirAccueil(DERNIERE_ETAPE);
   $("#btn-refaire-accueil").onclick = () => { $("#ecran-reglages").hidden = true; ouvrirAccueil(1); };
 
   // ---------- mon agenda ----------
